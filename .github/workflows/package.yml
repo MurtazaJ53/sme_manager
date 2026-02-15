@@ -49,23 +49,6 @@ jobs:
                  --win-menu `
                  --win-shortcut
 
-    - name: Upload MSI as Workflow Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Windows-MSI-Installer
-        path: build/dist/*.msi
-        retention-days: 1
-
-  distribute:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download MSI Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: Windows-MSI-Installer
-        path: build/dist
-
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
