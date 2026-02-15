@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
     - uses: actions/checkout@v4
 
@@ -50,11 +49,22 @@ jobs:
                  --win-menu `
                  --win-shortcut
 
-    - name: Upload Installer
+    - name: Upload MSI as Workflow Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Windows-MSI-Installer
         path: build/dist/*.msi
+        retention-days: 1
+
+  distribute:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download MSI Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: Windows-MSI-Installer
+        path: build/dist
 
     - name: Upload MSI to Google Drive
       uses: adityak74/google-drive-upload-git-action@main
