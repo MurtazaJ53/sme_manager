@@ -66,13 +66,18 @@ jobs:
         name: Windows-MSI-Installer
         path: build/dist
 
-    - name: Upload MSI to Google Drive
-      uses: adityak74/google-drive-upload-git-action@main
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
       with:
-        credentials: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON_BASE64 }}
-        filename: "build/dist/*.msi"
-        folderId: ${{ secrets.GDRIVE_FOLDER_ID }}
-        overwrite: "true"
+        files: build/dist/*.msi
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }}
+        body: |
+          Update for Lax Yard & SME Manager.
+          Build: ${{ github.run_number }}
+          Notes: ${{ github.event.head_commit.message }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Email Notification (via Gmail)
       uses: dawidd6/action-send-mail@v3
@@ -87,7 +92,10 @@ jobs:
         body: |
           Hi,
 
-          A new version of the Yard Manager software (Build #${{ github.run_number }}) is now ready on your Google Drive.
+          A new version of the Yard Manager software (Build #${{ github.run_number }}) is now ready!
+
+          You can download the installer here:
+          https://github.com/murtuzalaxmidhar/sme_manager/releases/latest
 
           Notes: ${{ github.event.head_commit.message }}
 
