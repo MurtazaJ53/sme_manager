@@ -27,52 +27,66 @@ public class VendorEditDialog extends Dialog<VendorEntity> {
         this.existingVendor = vendor;
 
         setTitle(vendor == null ? "Add New Vendor" : "Edit Vendor");
-        setHeaderText(vendor == null ? "Enter vendor details" : "Update vendor: " + vendor.getName());
+        setHeaderText(vendor == null ? "Register a new vendor to your network" : "Update information for " + vendor.getName());
 
         getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        getDialogPane().getStyleClass().add("dialog-pane");
 
         GridPane grid = new GridPane();
-        grid.setHgap(15);
-        grid.setVgap(15);
-        grid.setPadding(new Insets(LaxTheme.Layout.SUB_PANEL_PADDING));
-        grid.setPrefWidth(600);
+        grid.setHgap(20);
+        grid.setVgap(20);
+        grid.setPadding(new Insets(30));
+        grid.setPrefWidth(650);
+
+        // Styling helpers
+        String labelStyle = "-fx-font-weight: bold; -fx-text-fill: #64748B; -fx-font-size: 13px;";
+        String fieldStyle = "-fx-pref-height: 40px;";
 
         // Name (required)
-        Label nameLbl = new Label("Name *:");
-        nameLbl.setStyle("-fx-font-weight: " + LaxTheme.Typography.WEIGHT_SEMIBOLD + ";");
+        Label nameLbl = new Label("VENDOR NAME *");
+        nameLbl.setStyle(labelStyle);
         nameField = new TextField();
-        nameField.setPromptText("Vendor name (required)");
+        nameField.setPromptText("Enter full legal name of the vendor");
+        nameField.setStyle(fieldStyle);
         GridPane.setHgrow(nameField, Priority.ALWAYS);
 
         // Contact Person
-        Label contactPersonLbl = new Label("Contact Person:");
+        Label contactPersonLbl = new Label("CONTACT PERSON");
+        contactPersonLbl.setStyle(labelStyle);
         contactPersonField = new TextField();
-        contactPersonField.setPromptText("Primary contact name");
+        contactPersonField.setPromptText("Primary contact person name");
+        contactPersonField.setStyle(fieldStyle);
         GridPane.setHgrow(contactPersonField, Priority.ALWAYS);
 
         // Phone
-        Label phoneLbl = new Label("Phone:");
+        Label phoneLbl = new Label("PHONE NUMBER");
+        phoneLbl.setStyle(labelStyle);
         phoneField = new TextField();
-        phoneField.setPromptText("Contact phone number");
+        phoneField.setPromptText("e.g. +1 234 567 890");
+        phoneField.setStyle(fieldStyle);
         GridPane.setHgrow(phoneField, Priority.ALWAYS);
 
         // Email
-        Label emailLbl = new Label("Email:");
+        Label emailLbl = new Label("EMAIL ADDRESS");
+        emailLbl.setStyle(labelStyle);
         emailField = new TextField();
-        emailField.setPromptText("Email address");
+        emailField.setPromptText("e.g. vendor@example.com");
+        emailField.setStyle(fieldStyle);
         GridPane.setHgrow(emailField, Priority.ALWAYS);
 
         // Address
-        Label addressLbl = new Label("Address:");
+        Label addressLbl = new Label("OFFICE ADDRESS");
+        addressLbl.setStyle(labelStyle);
         addressArea = new TextArea();
-        addressArea.setPromptText("Full address");
+        addressArea.setPromptText("Enter full physical or mailing address");
         addressArea.setPrefRowCount(3);
         GridPane.setHgrow(addressArea, Priority.ALWAYS);
 
         // Notes
-        Label notesLbl = new Label("Notes:");
+        Label notesLbl = new Label("INTERNAL NOTES");
+        notesLbl.setStyle(labelStyle);
         notesArea = new TextArea();
-        notesArea.setPromptText("Additional notes");
+        notesArea.setPromptText("Any additional terms, bank details, or internal remarks");
         notesArea.setPrefRowCount(3);
         GridPane.setHgrow(notesArea, Priority.ALWAYS);
 

@@ -36,8 +36,14 @@ public class PurchaseHistoryViewModel {
         this.historyService = historyService;
         this.filterState = new PurchaseHistoryFilterState();
 
-        // Reload when page changes
+        // Reload when page changes or search query/filters change
         filterState.currentPage.addListener((obs, old, newVal) -> loadPurchases());
+        filterState.searchQuery.addListener((obs, old, newVal) -> applyFilters());
+        filterState.filterStartDate.addListener((obs, old, newVal) -> applyFilters());
+        filterState.filterEndDate.addListener((obs, old, newVal) -> applyFilters());
+        filterState.filterMinAmount.addListener((obs, old, newVal) -> applyFilters());
+        filterState.filterMaxAmount.addListener((obs, old, newVal) -> applyFilters());
+        filterState.filterVendorIds.addListener((javafx.collections.ListChangeListener<Integer>) c -> applyFilters());
     }
 
     public PurchaseHistoryFilterState getFilterState() {
@@ -69,6 +75,7 @@ public class PurchaseHistoryViewModel {
                         filterState.filterMinAmount.get(),
                         filterState.filterMaxAmount.get(),
                         filterState.filterChequeIssued.get(),
+                        filterState.searchQuery.get(),
                         filterState.currentPage.get());
 
                 // Get Counts
@@ -78,7 +85,8 @@ public class PurchaseHistoryViewModel {
                         filterState.filterVendorIds,
                         filterState.filterMinAmount.get(),
                         filterState.filterMaxAmount.get(),
-                        filterState.filterChequeIssued.get());
+                        filterState.filterChequeIssued.get(),
+                        filterState.searchQuery.get());
 
                 // Total count (unfiltered) could be fetched from repo if needed, but for now 0
                 // is fine or fetch separate

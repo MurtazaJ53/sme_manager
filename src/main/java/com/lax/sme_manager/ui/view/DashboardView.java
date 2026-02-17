@@ -1,16 +1,16 @@
 package com.lax.sme_manager.ui.view;
 
 import com.lax.sme_manager.service.MetricsService;
+import com.lax.sme_manager.service.UpdateService;
 import com.lax.sme_manager.ui.component.UIStyles;
 import com.lax.sme_manager.ui.theme.LaxTheme;
+import com.lax.sme_manager.ui.view.UpdateDialog;
 import com.lax.sme_manager.util.i18n.AppLabel;
 import com.lax.sme_manager.viewmodel.DashboardViewModel;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
 import javafx.application.Platform;
 
 public class DashboardView extends ScrollPane implements RefreshableView {
@@ -55,8 +55,55 @@ public class DashboardView extends ScrollPane implements RefreshableView {
         criticalGrid.add(createMetricCard("Cheques Clearing Today", viewModel.clearingTodayCount, "ORANGE"), 1, 0);
         criticalSection.getChildren().add(criticalGrid);
 
-        content.getChildren().addAll(title, purchaseSection, financialSection, criticalSection);
+        VBox updateSection = createUpdateHub();
+
+        content.getChildren().addAll(title, purchaseSection, financialSection, criticalSection, updateSection);
         setContent(content);
+    }
+
+    private VBox createUpdateHub() {
+        VBox section = createSection("🚀 System Update");
+        
+        HBox card = new HBox(20);
+        card.setPadding(new Insets(24));
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 20, 0, 0, 8); -fx-border-color: #E2E8F0; -fx-border-radius: 12;");
+        card.setPrefWidth(600);
+
+        VBox info = new VBox(4);
+        Label vLabel = new Label("SME Manager v2.0");
+        vLabel.setStyle("-fx-font-weight: 800; -fx-font-size: 16px; -fx-text-fill: #0F172A;");
+        Label statusLabel = new Label("Your system is up to date");
+        statusLabel.setStyle("-fx-font-size: 13px; -fx-text-fill: #64748B;");
+        info.getChildren().addAll(vLabel, statusLabel);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button btnCheck = new Button("Check for Updates");
+        btnCheck.setStyle("-fx-background-color: #F1F5F9; -fx-text-fill: #475569; -fx-font-weight: 600; -fx-background-radius: 8; -fx-padding: 8 16; -fx-border-color: #E2E8F0; -fx-border-radius: 8; -fx-cursor: hand;");
+        
+        btnCheck.setOnAction(e -> {
+            btnCheck.setDisable(true);
+            statusLabel.setText("Checking for updates...");
+            new UpdateService().checkForUpdates().thenAccept(updateInfo -> {
+                Platform.runLater(() -> {
+                    btnCheck.setDisable(false);
+                    if (updateInfo.isUpdateAvailable) {
+                        statusLabel.setText("New Version Available: v" + updateInfo.latestVersion);
+                        statusLabel.setStyle("-fx-text-fill: #0D9488; -fx-font-weight: 700;");
+                        new UpdateDialog(updateInfo).show();
+                    } else {
+                        statusLabel.setText("You are using the latest version.");
+                        statusLabel.setStyle("-fx-text-fill: #64748B; -fx-font-weight: 400;");
+                    }
+                });
+            });
+        });
+
+        card.getChildren().addAll(info, spacer, btnCheck);
+        section.getChildren().add(card);
+        return section;
     }
 
     private VBox createSection(String title) {

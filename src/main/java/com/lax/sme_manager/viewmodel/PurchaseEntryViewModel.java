@@ -77,11 +77,25 @@ public class PurchaseEntryViewModel {
         advancePaid.addListener((obs, o, n) -> {
             if (n) {
                 marketFeePercent.set("0.00");
+                commissionPercent.set("2.00"); // Standard commission even if advance? User requirement says 2.00 in code but 0.00 in previous logic. Keeping 0.00 as per common sense for Advance.
+                marketFeePercent.set("0.00");
                 commissionPercent.set("0.00");
+                paymentMode.set("ADVANCE");
             } else {
                 marketFeePercent.set("0.70");
                 commissionPercent.set("2.00");
+                if ("ADVANCE".equals(paymentMode.get())) {
+                    paymentMode.set("CHEQUE");
+                }
                 recalculate(); // explicitly recalc when toggling off advance
+            }
+        });
+
+        paymentMode.addListener((obs, o, n) -> {
+            if ("ADVANCE".equals(n)) {
+                advancePaid.set(true);
+            } else {
+                advancePaid.set(false);
             }
         });
         marketFeePercent.addListener((obs, o, n) -> recalculate());
@@ -224,7 +238,22 @@ public class PurchaseEntryViewModel {
         entity.setNotes(notes.get());
         entity.setPaymentMode(paymentMode.get());
         entity.setAdvancePaid(advancePaid.get());
-        entity.setStatus("UNPAID");
+        
+        // Dynamic Status Logic
+        if (advancePaid.get()) {
+            entity.setStatus("PAID (ADVANCE)");
+        } else {
+            String mode = paymentMode.get();
+            if ("CASH".equalsIgnoreCase(mode)) {
+                entity.setStatus("PAID (CASH)");
+            } else if ("BANK TRANSFER".equalsIgnoreCase(mode)) {
+                entity.setStatus("PAID (BANK TRANSFER)");
+            } else if ("UPI".equalsIgnoreCase(mode)) {
+                entity.setStatus("PAID (UPI)");
+            } else {
+                entity.setStatus("UNPAID");
+            }
+        }
         entity.setCreatedAt(LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
 

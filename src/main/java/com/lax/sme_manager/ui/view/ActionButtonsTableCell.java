@@ -95,6 +95,21 @@ public class ActionButtonsTableCell extends TableCell<PurchaseEntity, Void> {
         if (empty) {
             setGraphic(null);
         } else {
+            PurchaseEntity p = getTableView().getItems().get(getIndex());
+            if (p != null) {
+                boolean isCheque = "CHEQUE".equalsIgnoreCase(p.getPaymentMode()) && !Boolean.TRUE.equals(p.getAdvancePaid());
+                printBtn.setDisable(!isCheque);
+                
+                // Adjust appearance for disabled state
+                if (!isCheque) {
+                    printBtn.setOpacity(0.4);
+                    String reason = Boolean.TRUE.equals(p.getAdvancePaid()) ? "Advance Payment" : p.getPaymentMode();
+                    printBtn.setTooltip(new Tooltip("Printing restricted for " + reason));
+                } else {
+                    printBtn.setOpacity(1.0);
+                    printBtn.setTooltip(new Tooltip("Print Cheque"));
+                }
+            }
             setGraphic(container);
         }
     }

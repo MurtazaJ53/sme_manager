@@ -44,105 +44,167 @@ public class VendorManagementView extends VBox implements RefreshableView {
     }
 
     private void initializeUI() {
-        setPadding(new Insets(12)); // Compact padding
-        setSpacing(LaxTheme.Spacing.SPACE_12); // Compact spacing
-        setStyle("-fx-background-color: transparent; -fx-background: " + LaxTheme.Colors.LIGHT_GRAY + ";");
+        setPadding(new Insets(24, 32, 24, 32));
+        setSpacing(24);
+        setStyle("-fx-background-color: #f8fafc;");
 
-        // Header section
-        Label title = new Label("👥 Vendor Management");
-        title.setStyle(String.format(
-                "-fx-font-size: %d; -fx-font-weight: %d; -fx-text-fill: %s;",
-                LaxTheme.Typography.FONT_SIZE_2XL,
-                LaxTheme.Typography.WEIGHT_BOLD,
-                LaxTheme.Colors.TEXT_PRIMARY));
-
-        // Controls row
-        HBox controls = new HBox(LaxTheme.Spacing.SPACE_16);
-        controls.setAlignment(Pos.CENTER_LEFT);
-
-        searchField = new TextField();
-        searchField.setPromptText("Search vendors by name...");
-        searchField.setPrefWidth(300);
-        searchField.textProperty().addListener((obs, old, val) -> filterVendors(val));
-
-        Button addButton = new Button("➕ New Vendor");
-        addButton.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY));
-        addButton.setPrefHeight(40);
-        addButton.setOnAction(e -> handleAddVendor());
+        // --- HERO HEADER & TOP SEARCH ---
+        HBox topHeader = new HBox(20);
+        topHeader.setAlignment(Pos.CENTER_LEFT);
+        
+        VBox titleBox = new VBox(2);
+        Label titleLbl = new Label("Vendor Management");
+        titleLbl.setStyle("-fx-font-size: 28px; -fx-font-weight: 800; -fx-text-fill: #0F172A;");
+        
+        HBox statsBox = new HBox(10);
+        statsBox.setAlignment(Pos.CENTER_LEFT);
+        Region statsPill = createModernStatsPill();
+        statsBox.getChildren().add(statsPill);
+        
+        titleBox.getChildren().addAll(titleLbl, statsBox);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        controls.getChildren().addAll(searchField, spacer, addButton);
+        // Search Container (Expert-level custom styling)
+        HBox searchContainer = new HBox(10);
+        searchContainer.setAlignment(Pos.CENTER_LEFT);
+        searchContainer.setPadding(new Insets(0, 16, 0, 16));
+        searchContainer.setPrefHeight(45);
+        searchContainer.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #E2E8F0; -fx-border-radius: 12; -fx-border-width: 1;");
+        
+        Label searchIcon = new Label("🔍");
+        searchIcon.setStyle("-fx-text-fill: #94A3B8; -fx-font-size: 14px;");
+        
+        searchField = new TextField();
+        searchField.setPromptText("Search vendors or contacts...");
+        searchField.setPrefWidth(300);
+        searchField.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-text-fill: #1E293B; -fx-font-size: 13px;");
+        searchField.textProperty().addListener((obs, old, val) -> filterVendors(val));
+        
+        searchContainer.getChildren().addAll(searchIcon, searchField);
 
-        // Vendor table
+        Button addButton = new Button("➕ Add New Vendor");
+        addButton.setPrefHeight(45);
+        addButton.setStyle("-fx-background-color: #0D9488; -fx-text-fill: white; -fx-font-weight: 700; -fx-padding: 0 20; -fx-background-radius: 8; -fx-cursor: hand; -fx-effect: dropshadow(gaussian, rgba(13,148,136,0.3), 8, 0, 0, 4);");
+        addButton.setOnAction(e -> handleAddVendor());
+
+        topHeader.getChildren().addAll(titleBox, spacer, searchContainer, addButton);
+
+        // --- TABLE ---
         vendorTable = createVendorTable();
-        // Allow table to grow
         VBox.setVgrow(vendorTable, Priority.ALWAYS);
 
-        // Main Layout Container
-        VBox mainLayout = new VBox(12, title, controls, vendorTable);
+        getChildren().addAll(topHeader, vendorTable);
+    }
 
-        // Global ScrollPane
-        ScrollPane scrollPane = new ScrollPane(mainLayout);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setFitToHeight(true);
-        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent; -fx-padding: 0;");
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+    private HBox createModernStatsPill() {
+        HBox pill = new HBox(8);
+        pill.setAlignment(Pos.CENTER_LEFT);
+        pill.setPadding(new Insets(4, 12, 4, 12));
+        pill.setStyle("-fx-background-color: #E0F2FE; -fx-background-radius: 20; -fx-border-color: #7DD3FC; -fx-border-radius: 20;");
 
-        getChildren().add(scrollPane);
+        Label label = new Label("Total Registered:");
+        label.setStyle("-fx-text-fill: #0369A1; -fx-font-size: 11px; -fx-font-weight: 700; -fx-text-transform: uppercase;");
+        
+        Label value = new Label(String.valueOf(vendors.size()));
+        value.setStyle("-fx-text-fill: #0369A1; -fx-font-size: 11px; -fx-font-weight: 800;");
+        
+        vendors.addListener((javafx.collections.ListChangeListener<VendorEntity>) c -> {
+            value.setText(String.valueOf(vendors.size()));
+        });
+
+        pill.getChildren().addAll(label, value);
+        return pill;
     }
 
     private TableView<VendorEntity> createVendorTable() {
         TableView<VendorEntity> table = new TableView<>(vendors);
-        table.setStyle(LaxTheme.getCardStyle());
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
         // ID Column
         TableColumn<VendorEntity, Number> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(d -> new javafx.beans.property.SimpleIntegerProperty(d.getValue().getId()));
         idCol.setPrefWidth(60);
+        idCol.setResizable(false);
 
         // Name Column
-        TableColumn<VendorEntity, String> nameCol = new TableColumn<>("Name");
+        TableColumn<VendorEntity, String> nameCol = new TableColumn<>("VENDOR NAME");
         nameCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getName()));
-        nameCol.setPrefWidth(200);
+        nameCol.setPrefWidth(250);
 
         // Contact Person Column
-        TableColumn<VendorEntity, String> contactCol = new TableColumn<>("Contact Person");
+        TableColumn<VendorEntity, String> contactCol = new TableColumn<>("CONTACT PERSON");
         contactCol.setCellValueFactory(
                 d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getContactPerson()));
 
         // Phone Column
-        TableColumn<VendorEntity, String> phoneCol = new TableColumn<>("Phone");
-        phoneCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getPhone()));
+        TableColumn<VendorEntity, String> phoneCol = new TableColumn<>("PHONE");
+        phoneCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    VendorEntity v = getTableRow().getItem();
+                    Label l = new Label("📞 " + (v.getPhone() != null ? v.getPhone() : "N/A"));
+                    l.getStyleClass().add("cell-icon-label");
+                    setGraphic(l);
+                }
+            }
+        });
 
         // Email Column
-        TableColumn<VendorEntity, String> emailCol = new TableColumn<>("Email");
-        emailCol.setCellValueFactory(d -> new javafx.beans.property.SimpleStringProperty(d.getValue().getEmail()));
+        TableColumn<VendorEntity, String> emailCol = new TableColumn<>("EMAIL");
+        emailCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setGraphic(null);
+                    setText(null);
+                } else {
+                    VendorEntity v = getTableRow().getItem();
+                    Label l = new Label("📧 " + (v.getEmail() != null ? v.getEmail() : "N/A"));
+                    l.getStyleClass().add("cell-icon-label");
+                    setGraphic(l);
+                }
+            }
+        });
 
         // Actions Column
-        TableColumn<VendorEntity, Void> actionsCol = new TableColumn<>("Actions");
-        actionsCol.setPrefWidth(150);
+        TableColumn<VendorEntity, Void> actionsCol = new TableColumn<>("ACTIONS");
+        actionsCol.setPrefWidth(180);
         actionsCol.setCellFactory(col -> new TableCell<>() {
-            private final Button editBtn = new Button("Edit");
-            private final Button deleteBtn = new Button("Delete");
+            private final HBox container = new HBox(12);
+            private final Button editBtn;
+            private final Button deleteBtn;
 
             {
-                editBtn.setStyle("-fx-background-color: " + LaxTheme.Colors.PRIMARY_TEAL
-                        + "; -fx-text-fill: white; -fx-cursor: hand;");
-                deleteBtn.setStyle(
-                        "-fx-background-color: " + LaxTheme.Colors.ERROR + "; -fx-text-fill: white; -fx-cursor: hand;");
+                editBtn = createModernActionButton(
+                    "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+                    "#FFF3E0", "#F57C00", "#FFE0B2", "Edit Vendor"
+                );
+
+                deleteBtn = createModernActionButton(
+                    "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
+                    "#FFEBEE", "#D32F2F", "#FFCDD2", "Soft Delete"
+                );
 
                 editBtn.setOnAction(e -> {
-                    VendorEntity vendor = getTableView().getItems().get(getIndex());
-                    handleEditVendor(vendor);
+                    VendorEntity v = getTableView().getItems().get(getIndex());
+                    handleEditVendor(v);
                 });
 
                 deleteBtn.setOnAction(e -> {
-                    VendorEntity vendor = getTableView().getItems().get(getIndex());
-                    handleDeleteVendor(vendor);
+                    VendorEntity v = getTableView().getItems().get(getIndex());
+                    handleDeleteVendor(v);
                 });
+
+                container.getChildren().addAll(editBtn, deleteBtn);
+                container.setAlignment(Pos.CENTER);
             }
 
             @Override
@@ -151,15 +213,33 @@ public class VendorManagementView extends VBox implements RefreshableView {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    HBox box = new HBox(8, editBtn, deleteBtn);
-                    box.setAlignment(Pos.CENTER);
-                    setGraphic(box);
+                    setGraphic(container);
                 }
             }
         });
 
         table.getColumns().addAll(idCol, nameCol, contactCol, phoneCol, emailCol, actionsCol);
         return table;
+    }
+
+    private Button createModernActionButton(String svgPath, String bgColor, String iconColor, String hoverColor, String tooltip) {
+        javafx.scene.shape.SVGPath path = new javafx.scene.shape.SVGPath();
+        path.setContent(svgPath);
+        path.setFill(javafx.scene.paint.Color.web(iconColor));
+        path.setScaleX(1.0);
+        path.setScaleY(1.0);
+
+        Button btn = new Button();
+        btn.setGraphic(path);
+        btn.setTooltip(new Tooltip(tooltip));
+        
+        String baseStyle = String.format("-fx-background-color: %s; -fx-padding: 6 12; -fx-background-radius: 6; -fx-cursor: hand;", bgColor);
+        btn.setStyle(baseStyle);
+
+        btn.setOnMouseEntered(e -> btn.setStyle(baseStyle.replace(bgColor, hoverColor)));
+        btn.setOnMouseExited(e -> btn.setStyle(baseStyle));
+
+        return btn;
     }
 
     private void loadVendors() {

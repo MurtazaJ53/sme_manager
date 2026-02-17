@@ -15,6 +15,7 @@ public class PurchaseHistoryFilterState {
     // Date filters
     public final ObjectProperty<LocalDate> filterStartDate = new SimpleObjectProperty<>(LocalDate.now().minusMonths(1));
     public final ObjectProperty<LocalDate> filterEndDate = new SimpleObjectProperty<>(LocalDate.now());
+    public final StringProperty searchQuery = new SimpleStringProperty("");
 
     // Vendor filter
     public final ObservableList<Integer> filterVendorIds = FXCollections.observableArrayList();
@@ -37,6 +38,7 @@ public class PurchaseHistoryFilterState {
         filterMinAmount.set(BigDecimal.ZERO);
         filterMaxAmount.set(null);
         filterChequeIssued.set(null);
+        searchQuery.set("");
         currentPage.set(0);
     }
 
@@ -44,6 +46,13 @@ public class PurchaseHistoryFilterState {
         LocalDate today = LocalDate.now();
         filterStartDate.set(today);
         filterEndDate.set(today);
+        currentPage.set(0);
+    }
+
+    public void applyPresetYesterday() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        filterStartDate.set(yesterday);
+        filterEndDate.set(yesterday);
         currentPage.set(0);
     }
 

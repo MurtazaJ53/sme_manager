@@ -9,6 +9,7 @@ import com.lax.sme_manager.ui.theme.LaxTheme;
 import com.lax.sme_manager.util.i18n.AppLabel;
 import com.lax.sme_manager.util.NumericTextFormatter;
 import com.lax.sme_manager.viewmodel.PurchaseHistoryViewModel;
+import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
@@ -24,6 +25,8 @@ import javafx.scene.shape.SVGPath;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.util.StringConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -33,6 +36,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class PurchaseHistoryView extends VBox implements RefreshableView {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PurchaseHistoryView.class);
     private final PurchaseHistoryViewModel viewModel;
     private final VendorRepository vendorRepository;
     private final ExportService exportService;
@@ -57,52 +61,78 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
     }
 
     private void initializeUI() {
-        setPadding(new Insets(12));
-        setSpacing(LaxTheme.Spacing.SPACE_12);
-        setStyle("-fx-background-color: transparent; -fx-background: " + LaxTheme.Colors.LIGHT_GRAY + ";");
+        setPadding(new Insets(24, 32, 24, 32));
+        setSpacing(24);
+        setStyle("-fx-background-color: #f8fafc;");
 
-        // Header
-        HBox headerRow = new HBox(15);
-        headerRow.setAlignment(Pos.CENTER_LEFT);
-
-        Label title = new Label(AppLabel.TITLE_PURCHASE_HISTORY.get());
-        title.setStyle(UIStyles.getTitleStyle());
+        // --- TOP HEADER ---
+        HBox topHeader = new HBox(20);
+        topHeader.setAlignment(Pos.CENTER_LEFT);
+        
+        VBox titleBox = new VBox(2);
+        Label titleLbl = new Label("Purchase History");
+        titleLbl.setStyle("-fx-font-size: 28px; -fx-font-weight: 800; -fx-text-fill: #0F172A;");
+        Label subtitleLbl = new Label("Manage and track all business transactions");
+        subtitleLbl.setStyle("-fx-font-size: 14px; -fx-text-fill: #64748B;");
+        titleBox.getChildren().addAll(titleLbl, subtitleLbl);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        // --- BULK ACTIONS (Dynamic visibility) ---
+        HBox bulkActions = new HBox(12);
+        bulkActions.setAlignment(Pos.CENTER_LEFT);
+        
         Button btnBatchPrint = new Button("🖨️ Batch Print");
-        btnBatchPrint.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY));
+        btnBatchPrint.setStyle("-fx-background-color: #0D9488; -fx-text-fill: white; -fx-font-weight: 700; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
         btnBatchPrint.setOnAction(e -> handleBatchPrint());
 
         Button btnDeleteSelected = new Button("Delete Selected");
-        btnDeleteSelected.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.DANGER));
+        btnDeleteSelected.setStyle("-fx-background-color: #FEE2E2; -fx-text-fill: #EF4444; -fx-font-weight: 700; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand; -fx-border-color: #FCA5A5; -fx-border-radius: 8;");
         btnDeleteSelected.setOnAction(e -> handleBulkDelete());
 
-        var selectionEmpty = javafx.beans.binding.Bindings.isEmpty(viewModel.selectedPurchases);
-        btnBatchPrint.visibleProperty().bind(selectionEmpty.not());
-        btnBatchPrint.managedProperty().bind(btnBatchPrint.visibleProperty());
-        btnDeleteSelected.visibleProperty().bind(selectionEmpty.not());
-        btnDeleteSelected.managedProperty().bind(btnDeleteSelected.visibleProperty());
+        // Bind visibility to selection
+        javafx.beans.binding.BooleanBinding hasSelection = javafx.beans.binding.Bindings.isNotEmpty(viewModel.selectedPurchases);
+        bulkActions.visibleProperty().bind(hasSelection);
+        bulkActions.managedProperty().bind(hasSelection);
+        bulkActions.getChildren().addAll(btnBatchPrint, btnDeleteSelected);
 
-        Button exportBtn = new Button("Export to Excel");
-        exportBtn.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.SECONDARY));
+        // Search Container
+        HBox searchContainer = new HBox(10);
+        searchContainer.setAlignment(Pos.CENTER_LEFT);
+        searchContainer.setPadding(new Insets(0, 16, 0, 16));
+        searchContainer.setPrefHeight(45);
+        searchContainer.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-border-color: #E2E8F0; -fx-border-radius: 12; -fx-border-width: 1;");
+        
+        Label searchIcon = new Label("🔍");
+        searchIcon.setStyle("-fx-text-fill: #94A3B8; -fx-font-size: 14px;");
+        
+        TextField searchInput = new TextField();
+        searchInput.setPromptText("Search by vendor or cheque...");
+        searchInput.setPrefWidth(220);
+        searchInput.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-text-fill: #1E293B; -fx-font-size: 13px;");
+        searchInput.textProperty().bindBidirectional(viewModel.getFilterState().searchQuery);
+        searchContainer.getChildren().addAll(searchIcon, searchInput);
+
+        Button exportBtn = new Button("Export Excel");
+        exportBtn.setPrefHeight(45);
+        exportBtn.setStyle("-fx-background-color: #F1F5F9; -fx-text-fill: #475569; -fx-font-weight: 700; -fx-padding: 0 20; -fx-background-radius: 8; -fx-border-color: #CBD5E1; -fx-border-radius: 8; -fx-cursor: hand;");
         exportBtn.setOnAction(e -> handleExport());
 
-        headerRow.getChildren().addAll(title, spacer, btnBatchPrint, btnDeleteSelected, exportBtn);
+        topHeader.getChildren().addAll(titleBox, spacer, bulkActions, searchContainer, exportBtn);
 
-        // Filters
-        VBox filterPanel = createFilterPanel();
+        // --- FILTER CARD ---
+        VBox filterCard = createExpertFilterCard();
 
-        // Table
+        // --- TABLE ---
         purchaseTable = createTable();
         VBox.setVgrow(purchaseTable, Priority.ALWAYS);
         purchaseTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
-        // Footer
+        // --- FOOTER ---
         HBox footer = createUnifiedFooter();
 
-        getChildren().addAll(headerRow, filterPanel, purchaseTable, footer);
+        getChildren().addAll(topHeader, filterCard, purchaseTable, footer);
     }
 
     private HBox createUnifiedFooter() {
@@ -145,120 +175,159 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
         return footer;
     }
 
-    private VBox createFilterPanel() {
-        VBox panel = new VBox(12);
-        panel.setStyle(UIStyles.getCardStyle());
-        panel.setPadding(new Insets(16));
+    private VBox createExpertFilterCard() {
+        VBox card = new VBox(15);
+        card.setPadding(new Insets(20, 24, 20, 24));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.03), 10, 0, 0, 4); -fx-border-color: #F1F5F9; -fx-border-width: 1; -fx-border-radius: 12;");
 
-        GridPane grid = new GridPane();
-        grid.setHgap(20);
-        grid.setVgap(12);
-        grid.setAlignment(Pos.CENTER_LEFT);
+        // --- ROW 1: PRIMARY FILTERS ---
+        HBox row1 = new HBox(20);
+        row1.setAlignment(Pos.CENTER_LEFT);
 
-        // Column 1: Date Range & Presets
-        VBox dateCol = new VBox(8);
-        HBox dateBox = new HBox(8, new Label("Date:"),
-                new DatePicker() {
-                    {
-                        setPrefWidth(125);
-                        valueProperty().bindBidirectional(viewModel.getFilterState().filterStartDate);
-                    }
-                },
-                new Label("-"),
-                new DatePicker() {
-                    {
-                        setPrefWidth(125);
-                        valueProperty().bindBidirectional(viewModel.getFilterState().filterEndDate);
+        Label filterLbl = new Label("LIVE FILTERS:");
+        filterLbl.setStyle("-fx-text-fill: #94A3B8; -fx-font-weight: 800; -fx-font-size: 11px; -fx-letter-spacing: 0.1em;");
+
+        // Date Selectors
+        HBox datePair = new HBox(10);
+        datePair.setAlignment(Pos.CENTER_LEFT);
+        
+        DatePicker startP = new DatePicker();
+        startP.setPrefWidth(140);
+        startP.setPromptText("Start Date");
+        startP.valueProperty().bindBidirectional(viewModel.getFilterState().filterStartDate);
+        
+        Label toText = new Label("to");
+        toText.setStyle("-fx-text-fill: #64748B; -fx-font-size: 13px;");
+        
+        DatePicker endP = new DatePicker();
+        endP.setPrefWidth(140);
+        endP.setPromptText("End Date");
+        endP.valueProperty().bindBidirectional(viewModel.getFilterState().filterEndDate);
+        
+        datePair.getChildren().addAll(startP, toText, endP);
+
+        // Quick Presets
+        HBox presetsGrp = new HBox(6);
+        String pStyle = "-fx-background-color: #F1F5F9; -fx-text-fill: #475569; -fx-font-size: 11px; -fx-font-weight: 600; -fx-padding: 6 12; -fx-background-radius: 4; -fx-cursor: hand;";
+        
+        Button bToday = new Button("Today"); bToday.setStyle(pStyle);
+        bToday.setOnAction(e -> viewModel.getFilterState().applyPresetToday());
+        
+        Button bYesterday = new Button("Yesterday"); bYesterday.setStyle(pStyle);
+        bYesterday.setOnAction(e -> viewModel.getFilterState().applyPresetYesterday());
+        
+        Button bMonth = new Button("This Month"); bMonth.setStyle(pStyle);
+        bMonth.setOnAction(e -> viewModel.getFilterState().applyPresetLastMonth());
+        
+        presetsGrp.getChildren().addAll(bToday, bYesterday, bMonth);
+
+        Region row1Spacer = new Region();
+        HBox.setHgrow(row1Spacer, Priority.ALWAYS);
+
+        Button resetBtn = new Button("Reset All");
+        resetBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #64748B; -fx-font-size: 12px; -fx-font-weight: 600; -fx-cursor: hand;");
+        resetBtn.setOnAction(e -> viewModel.resetFilters());
+
+        row1.getChildren().addAll(filterLbl, datePair, presetsGrp, row1Spacer, resetBtn);
+
+        // --- ROW 2: VENDOR & AMOUNT ---
+        HBox row2 = new HBox(30);
+        row2.setAlignment(Pos.CENTER_LEFT);
+        row2.setPadding(new Insets(5, 0, 0, 0));
+
+        // Vendor Selector (Improved with in-context "Select All/Clear")
+        VBox vBox = new VBox(4);
+        Label vLbl = new Label("Vendor Selection:");
+        vLbl.setStyle("-fx-text-fill: #64748B; -fx-font-weight: 600; -fx-font-size: 11px;");
+        
+        org.controlsfx.control.CheckComboBox<Vendor> vCombo = new org.controlsfx.control.CheckComboBox<>();
+        vCombo.setPrefWidth(250);
+        vCombo.getItems().addAll(vendorRepository.findAllVendors());
+        vCombo.setConverter(new StringConverter<>() {
+            @Override public String toString(Vendor v) { return v == null ? "All Vendors" : v.getName(); }
+            @Override public Vendor fromString(String s) { return null; }
+        });
+        vCombo.getCheckModel().getCheckedItems().addListener((javafx.collections.ListChangeListener<Vendor>) c -> {
+            List<Integer> ids = vCombo.getCheckModel().getCheckedItems().stream().map(Vendor::getId).toList();
+            if (!ids.equals(viewModel.getFilterState().filterVendorIds)) {
+                viewModel.getFilterState().filterVendorIds.setAll(ids);
+            }
+        });
+
+        // State -> UI Sync (Fix for Reset/Presets)
+        viewModel.getFilterState().filterVendorIds.addListener((javafx.collections.ListChangeListener<Integer>) c -> {
+            List<Integer> currentCheckedIds = vCombo.getCheckModel().getCheckedItems().stream().map(Vendor::getId).toList();
+            if (!currentCheckedIds.equals(viewModel.getFilterState().filterVendorIds)) {
+                Platform.runLater(() -> {
+                    vCombo.getCheckModel().clearChecks();
+                    for (Vendor v : vCombo.getItems()) {
+                        if (viewModel.getFilterState().filterVendorIds.contains(v.getId())) {
+                            vCombo.getCheckModel().check(v);
+                        }
                     }
                 });
-        dateBox.setAlignment(Pos.CENTER_LEFT);
-
-        HBox presetBox = new HBox(8);
-        Button btnToday = new Button("Today");
-        btnToday.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.SECONDARY) + "; -fx-font-size: 11px;");
-        btnToday.setOnAction(e -> viewModel.getFilterState().applyPresetToday());
-
-        Button btnMonth = new Button("This Month");
-        btnMonth.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.SECONDARY) + "; -fx-font-size: 11px;");
-        btnMonth.setOnAction(e -> viewModel.getFilterState().applyPresetLastMonth());
-        presetBox.getChildren().addAll(btnToday, btnMonth);
-
-        dateCol.getChildren().addAll(dateBox, presetBox);
-        grid.add(dateCol, 0, 0);
-
-        // Column 2: Vendor
-        VBox vendorCol = new VBox(8);
-        vendorCol.getChildren().add(new Label("Vendor:"));
-        org.controlsfx.control.CheckComboBox<Vendor> vendorCheckCombo = new org.controlsfx.control.CheckComboBox<>();
-        vendorCheckCombo.setPrefWidth(200);
-        vendorCheckCombo.getItems().addAll(vendorRepository.findAllVendors());
-        vendorCheckCombo.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Vendor v) {
-                return v == null ? "" : v.getName();
-            }
-
-            @Override
-            public Vendor fromString(String s) {
-                return null;
             }
         });
-        vendorCheckCombo.getCheckModel().getCheckedItems()
-                .addListener((javafx.collections.ListChangeListener<Vendor>) c -> {
-                    viewModel.getFilterState().filterVendorIds.setAll(
-                            vendorCheckCombo.getCheckModel().getCheckedItems().stream().map(Vendor::getId).toList());
-                });
-        vendorCol.getChildren().add(vendorCheckCombo);
-        grid.add(vendorCol, 1, 0);
 
-        // Column 3: Amount Range
-        VBox amountCol = new VBox(8);
-        amountCol.getChildren().add(new Label("Amount Range:"));
-        HBox amountBox = new HBox(8);
-        TextField minAmount = new TextField();
-        minAmount.setPromptText("Min");
-        minAmount.setPrefWidth(80);
-        minAmount.setTextFormatter(NumericTextFormatter.decimalOnly(2));
-        minAmount.textProperty().addListener((o, old, n) -> {
-            viewModel.getFilterState().filterMinAmount.set(n.isEmpty() ? BigDecimal.ZERO : new BigDecimal(n));
+        // "Select All" / "Clear" inside the dropdown context
+        ContextMenu vCtx = new ContextMenu();
+        MenuItem mAll = new MenuItem("✓ Select All Vendors");
+        mAll.setOnAction(e -> vCombo.getCheckModel().checkAll());
+        MenuItem mNone = new MenuItem("✕ Clear Selection");
+        mNone.setOnAction(e -> vCombo.getCheckModel().clearChecks());
+        vCtx.getItems().addAll(mAll, mNone);
+        vCombo.setContextMenu(vCtx);
+        Tooltip.install(vCombo, new Tooltip("Right-click for Select All / Clear"));
+
+        vBox.getChildren().addAll(vLbl, vCombo);
+
+        // Amount Range
+        VBox aBox = new VBox(4);
+        Label aLbl = new Label("Amount Range (₹):");
+        aLbl.setStyle("-fx-text-fill: #64748B; -fx-font-weight: 600; -fx-font-size: 11px;");
+        
+        HBox aFields = new HBox(8);
+        aFields.setAlignment(Pos.CENTER_LEFT);
+        TextField minF = new TextField(); minF.setPromptText("Min"); minF.setPrefWidth(100);
+        minF.setTextFormatter(NumericTextFormatter.decimalOnly(2));
+        minF.textProperty().addListener((o, old, n) -> {
+            try {
+                BigDecimal val = n.isEmpty() ? BigDecimal.ZERO : new BigDecimal(n);
+                if (viewModel.getFilterState().filterMinAmount.get().compareTo(val) != 0) {
+                    viewModel.getFilterState().filterMinAmount.set(val);
+                }
+            } catch (Exception e) {}
+        });
+        
+        TextField maxF = new TextField(); maxF.setPromptText("Max"); maxF.setPrefWidth(100);
+        maxF.setTextFormatter(NumericTextFormatter.decimalOnly(2));
+        maxF.textProperty().addListener((o, old, n) -> {
+            try {
+                BigDecimal val = n.isEmpty() ? null : new BigDecimal(n);
+                BigDecimal current = viewModel.getFilterState().filterMaxAmount.get();
+                if ((val == null && current != null) || (val != null && (current == null || current.compareTo(val) != 0))) {
+                    viewModel.getFilterState().filterMaxAmount.set(val);
+                }
+            } catch (Exception e) {}
         });
 
-        TextField maxAmount = new TextField();
-        maxAmount.setPromptText("Max");
-        maxAmount.setPrefWidth(80);
-        maxAmount.setTextFormatter(NumericTextFormatter.decimalOnly(2));
-        maxAmount.textProperty().addListener((o, old, n) -> {
-            viewModel.getFilterState().filterMaxAmount.set(n.isEmpty() ? null : new BigDecimal(n));
+        // State -> UI Sync for Amounts
+        viewModel.getFilterState().filterMinAmount.addListener((o, old, n) -> {
+            String txt = (n == null || n.compareTo(BigDecimal.ZERO) == 0) ? "" : n.toPlainString();
+            if (!minF.getText().equals(txt)) minF.setText(txt);
         });
-        amountBox.getChildren().addAll(minAmount, new Label("-"), maxAmount);
-        amountBox.setAlignment(Pos.CENTER_LEFT);
-        amountCol.getChildren().add(amountBox);
-        grid.add(amountCol, 2, 0);
-
-        // Column 4: Buttons (Expert Alignment)
-        HBox btnBox = new HBox(12);
-        btnBox.setAlignment(Pos.BOTTOM_RIGHT);
-        Button apply = new Button("Apply");
-        apply.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY));
-        apply.setOnAction(e -> viewModel.applyFilters());
-
-        Button reset = new Button("Reset");
-        reset.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.SECONDARY));
-        reset.setOnAction(e -> {
-            vendorCheckCombo.getCheckModel().clearChecks();
-            minAmount.clear();
-            maxAmount.clear();
-            viewModel.resetFilters();
+        viewModel.getFilterState().filterMaxAmount.addListener((o, old, n) -> {
+            String txt = (n == null) ? "" : n.toPlainString();
+            if (!maxF.getText().equals(txt)) maxF.setText(txt);
         });
-        btnBox.getChildren().addAll(reset, apply);
+        
+        aFields.getChildren().addAll(minF, new Label("-"), maxF);
+        aBox.getChildren().addAll(aLbl, aFields);
 
-        BorderPane filterLayout = new BorderPane();
-        filterLayout.setLeft(grid);
-        filterLayout.setRight(btnBox);
-        BorderPane.setMargin(btnBox, new Insets(0, 0, 4, 0));
+        row2.getChildren().addAll(vBox, aBox);
 
-        panel.getChildren().add(filterLayout);
-        return panel;
+        card.getChildren().addAll(row1, row2);
+        return card;
     }
 
     private TableView<PurchaseEntity> createTable() {
@@ -330,7 +399,7 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
                     setStyle("");
                 } else {
                     setText(item);
-                    if ("PAID".equalsIgnoreCase(item))
+                    if (item.startsWith("PAID"))
                         setStyle("-fx-text-fill: #10b981; -fx-font-weight: bold;");
                     else if ("UNPAID".equalsIgnoreCase(item))
                         setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
@@ -528,7 +597,22 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
     }
 
     private void handleExport() {
-        /* Use existing export logic */ }
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Purchase History");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Workbook", "*.xlsx"));
+        fileChooser.setInitialFileName("Purchase_History_" + LocalDate.now() + ".xlsx");
+        
+        File file = fileChooser.showSaveDialog(getScene().getWindow());
+        if (file != null) {
+            try {
+                exportService.exportToExcel(viewModel.purchaseList, file);
+                new Alert(Alert.AlertType.INFORMATION, "Export successful!").show();
+            } catch (Exception e) {
+                new Alert(Alert.AlertType.ERROR, "Export failed: " + e.getMessage()).show();
+                LOGGER.error("Export error", e);
+            }
+        }
+    }
 
     @Override
     public void refresh() {

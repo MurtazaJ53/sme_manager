@@ -147,7 +147,7 @@ public class PurchaseEntryView extends VBox implements RefreshableView {
 
         // -- Row 4: Payment & Advance --
         ComboBox<String> paymentCombo = new ComboBox<>();
-        paymentCombo.getItems().addAll("CHEQUE", "CASH", "BANK TRANSFER", "UPI");
+        paymentCombo.getItems().addAll("CHEQUE", "CASH", "BANK TRANSFER", "UPI", "ADVANCE");
         paymentCombo.valueProperty().bindBidirectional(viewModel.paymentMode);
         VBox paymentBox = UIComponents.createLabeledComboBox(AppLabel.LBL_PAYMENT_MODE.get(),
                 paymentCombo);
