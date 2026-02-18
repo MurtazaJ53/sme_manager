@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 
 public class UpdateService {
     private static final Logger LOGGER = AppLogger.getLogger(UpdateService.class);
-    private static final String CURRENT_VERSION = "2.0";
+    private static final String CURRENT_VERSION = "2.1";
     
     // Placeholder URLs - In a real scenario, these would point to your server or GitHub Releases
     private static final String VERSION_JSON_URL = "https://raw.githubusercontent.com/MurtazaJ53/sme_manager/main/version.json";
@@ -41,10 +41,7 @@ public class UpdateService {
     public CompletableFuture<UpdateInfo> checkForUpdates() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // For demonstration purposes, if the URL fails, we'll return a mock "Update Available" 
-                // if we are in a dev environment or if specific conditions are met.
-                // In a real app, this would be a real network call.
-                
+                // Real network call to fetch version.json
                 HttpClient client = HttpClient.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(VERSION_JSON_URL))
@@ -54,22 +51,23 @@ public class UpdateService {
                 HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 
                 if (response.statusCode() == 200) {
-                    // Simple manual parsing to avoid adding JSON dependencies for now
                     String body = response.body();
                     String version = extractJsonValue(body, "latestVersion");
                     String url = extractJsonValue(body, "downloadUrl");
-                    String notes = extractJsonValue(body, "releaseNotes");
+                    String notes = extractJsonValue(body, "releaseNotes"); // Notes can be empty
 
+                    // Compare versions
                     boolean available = isNewerVersion(version, CURRENT_VERSION);
                     return new UpdateInfo(version, url, notes, available);
+                } else {
+                    LOGGER.warn("Update check failed with status: {}", response.statusCode());
                 }
             } catch (Exception e) {
                 LOGGER.error("Failed to check for updates: {}", e.getMessage());
             }
             
-            // Mocking an update for demonstration if the network call fails
-            return new UpdateInfo("2.1.0", "https://example.com/sme-manager-v2.1.jar", 
-                "• Expert Redesign of Vendor Management\n• Interactive Cheque Writer with Live Preview\n• Instant Filtering in Purchase History\n• Performance Optimizations", true);
+            // Return "No Update" if check fails
+            return new UpdateInfo(CURRENT_VERSION, "", "", false);
         });
     }
 

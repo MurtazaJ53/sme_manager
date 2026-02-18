@@ -163,6 +163,53 @@ public class PurchaseEntryViewModel {
         new Thread(saveTask).start();
     }
 
+    /**
+     * Submit the entry and return cheque data for immediate printing.
+     * Returns null if validation or save fails.
+     */
+    public ChequeSubmitResult submitAndGetChequeData() {
+        if (!validate())
+            return null;
+
+        try {
+            // Capture cheque data BEFORE save resets the form
+            String vendorName = selectedVendor.get() != null ? selectedVendor.get().getName() : "Unknown";
+            BigDecimal total = BigDecimal.valueOf(grandTotal.get());
+            LocalDate chequeDate = entryDate.get() != null ? entryDate.get() : LocalDate.now();
+
+            performSave();
+
+            // Get the last inserted purchase ID
+            int savedId = purchaseRepository.getLastInsertedId();
+
+            statusMessage.set("Entry saved successfully!");
+            isStatusError.set(false);
+            resetForm();
+
+            return new ChequeSubmitResult(vendorName, total, chequeDate, savedId);
+        } catch (Exception e) {
+            LOGGER.error("Save failed: " + e.getMessage());
+            statusMessage.set("Error saving entry: " + e.getMessage());
+            isStatusError.set(true);
+            return null;
+        }
+    }
+
+    /** Data class to carry cheque info from submit to print */
+    public static class ChequeSubmitResult {
+        public final String vendorName;
+        public final BigDecimal grandTotal;
+        public final LocalDate chequeDate;
+        public final int purchaseId;
+
+        public ChequeSubmitResult(String vendorName, BigDecimal grandTotal, LocalDate chequeDate, int purchaseId) {
+            this.vendorName = vendorName;
+            this.grandTotal = grandTotal;
+            this.chequeDate = chequeDate;
+            this.purchaseId = purchaseId;
+        }
+    }
+
     private boolean validate() {
         if (selectedVendor.get() == null && (selectedVendor.getName() == null || selectedVendor.getName().isBlank())) {
             // Logic to handle "new typing" in UI binding might be needed,

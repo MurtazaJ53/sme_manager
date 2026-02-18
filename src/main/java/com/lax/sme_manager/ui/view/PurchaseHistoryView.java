@@ -344,6 +344,8 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
         selectCol.setCellValueFactory(data -> {
             PurchaseEntity p = data.getValue();
             BooleanProperty prop = new SimpleBooleanProperty(viewModel.selectedPurchases.contains(p));
+
+            // When user clicks individual checkbox -> update the shared list
             prop.addListener((obs, old, n) -> {
                 if (n) {
                     if (!viewModel.selectedPurchases.contains(p))
@@ -352,6 +354,15 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
                     viewModel.selectedPurchases.remove(p);
                 }
             });
+
+            // When the shared list changes (e.g. Select All) -> update this checkbox
+            viewModel.selectedPurchases.addListener((javafx.collections.ListChangeListener<PurchaseEntity>) c -> {
+                boolean selected = viewModel.selectedPurchases.contains(p);
+                if (prop.get() != selected) {
+                    Platform.runLater(() -> prop.set(selected));
+                }
+            });
+
             return prop;
         });
         selectCol.setCellFactory(javafx.scene.control.cell.CheckBoxTableCell.forTableColumn(selectCol));

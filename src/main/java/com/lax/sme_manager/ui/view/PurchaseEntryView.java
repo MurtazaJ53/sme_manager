@@ -310,6 +310,17 @@ public class PurchaseEntryView extends VBox implements RefreshableView {
         submitBtn.setPrefWidth(160);
         submitBtn.setOnAction(e -> viewModel.submitEntry());
 
+        // Submit & Print Cheque Button (visible only when payment mode is CHEQUE)
+        Button submitPrintBtn = new Button("Submit & Print Cheque 🖨️");
+        submitPrintBtn.setStyle("-fx-background-color: #0D9488; -fx-text-fill: white; -fx-font-weight: 700; -fx-padding: 10 20; -fx-background-radius: 8; -fx-cursor: hand;");
+        submitPrintBtn.setPrefHeight(LaxTheme.ComponentSizes.BUTTON_HEIGHT_MD);
+        submitPrintBtn.setOnAction(e -> handleSubmitAndPrint());
+
+        // Show/hide based on payment mode
+        submitPrintBtn.visibleProperty().bind(
+                javafx.beans.binding.Bindings.equal(viewModel.paymentMode, "CHEQUE"));
+        submitPrintBtn.managedProperty().bind(submitPrintBtn.visibleProperty());
+
         Button resetBtn = new Button(AppLabel.ACTION_RESET.get());
         resetBtn.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.SECONDARY));
         resetBtn.setPrefHeight(LaxTheme.ComponentSizes.BUTTON_HEIGHT_MD);
@@ -318,9 +329,27 @@ public class PurchaseEntryView extends VBox implements RefreshableView {
             vendorComboBox.getEditor().clear();
         });
 
-        HBox box = new HBox(12, submitBtn, resetBtn);
+        HBox box = new HBox(12, submitBtn, submitPrintBtn, resetBtn);
         box.setAlignment(Pos.CENTER_RIGHT);
         return box;
+    }
+
+    private void handleSubmitAndPrint() {
+        PurchaseEntryViewModel.ChequeSubmitResult result = viewModel.submitAndGetChequeData();
+        if (result != null) {
+            // Open the Cheque Preview Dialog with the saved purchase data
+            com.lax.sme_manager.dto.ChequeData chequeData = new com.lax.sme_manager.dto.ChequeData(
+                    result.vendorName,
+                    result.grandTotal,
+                    result.chequeDate,
+                    true,
+                    result.purchaseId
+            );
+            new ChequePreviewDialog(chequeData, () -> {}).show();
+
+            // Clear vendor combo after reset
+            vendorComboBox.getEditor().clear();
+        }
     }
 
     private VBox createSummarySection() {

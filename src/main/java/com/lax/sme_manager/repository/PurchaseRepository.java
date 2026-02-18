@@ -334,6 +334,18 @@ public class PurchaseRepository implements IPurchaseRepository {
     }
 
     @Override
+    public int getLastInsertedId() {
+        String sql = "SELECT MAX(id) FROM purchase_entries";
+        try (Connection conn = DatabaseManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            if (rs.next()) return rs.getInt(1);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return -1;
+    }
+
     public void delete(Integer id) {
         String sql = "UPDATE purchase_entries SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
 

@@ -21,12 +21,23 @@ public class ChequeConfigRepository {
 
             ResultSet rs = pstmt.executeQuery();
             if (rs.next()) {
-                return mapResultSetToConfig(rs);
+                ChequeConfig cfg = mapResultSetToConfig(rs);
+                // If all coordinates are zero, this is an empty row — use factory defaults
+                if (cfg.getDateX() == 0 && cfg.getPayeeX() == 0 && cfg.getAmountWordsX() == 0) {
+                    return ChequeConfig.getFactoryDefaults();
+                }
+                return cfg;
             }
         } catch (SQLException e) {
             LOGGER.error("Error fetching cheque config", e);
         }
-        return null;
+        // No DB row → return Golden Coordinates
+        return ChequeConfig.getFactoryDefaults();
+    }
+
+    /** Reset to factory Golden Coordinates */
+    public void resetToFactory() {
+        saveConfig(ChequeConfig.getFactoryDefaults());
     }
 
     public void saveConfig(ChequeConfig config) {

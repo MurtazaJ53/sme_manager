@@ -1,5 +1,5 @@
 @echo off
-set VERSION=2.0
+set VERSION=2.1
 set MAIN_CLASS=com.lax.sme_manager.LaxSmeManagerStarter
 set APP_NAME="Lax Yard & SME Manager"
 set VENDOR="RASolutions"
@@ -22,13 +22,13 @@ jpackage --name %APP_NAME% ^
          --app-version %VERSION% ^
          --input build\libs ^
          --dest build\dist ^
-         --main-jar sme_manager-%VERSION%.jar ^
+         --main-jar sme-mngr.jar ^
          --main-class %MAIN_CLASS% ^
          --runtime-image build\runtime ^
          --type msi ^
-         --win-dir-chooser ^
-         --win-menu ^
-         --win-shortcut
+         --win-header --win-menu --win-menu-group "Lax SME Manager" ^
+         --win-shortcut ^
+         --win-upgrade-uuid "9D26D684-065C-4E15-998C-82142279140B"
 
 echo Done! MSI is in build/dist
 pause

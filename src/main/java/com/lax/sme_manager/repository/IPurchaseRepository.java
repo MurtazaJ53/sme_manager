@@ -76,5 +76,7 @@ public interface IPurchaseRepository {
 
     List<PurchaseEntity> findByVendorAndStatus(Integer vendorId, String status);
 
+    int getLastInsertedId();
+
     void delete(Integer id);
 }

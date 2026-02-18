@@ -6,6 +6,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -24,7 +25,8 @@ import com.lax.sme_manager.domain.Vendor;
 import com.lax.sme_manager.repository.model.PurchaseEntity;
 import com.lax.sme_manager.util.i18n.AppLabel;
 import com.lax.sme_manager.ui.view.PurchaseEditView;
-import com.lax.sme_manager.ui.view.ChequeWriterView; // Import
+import com.lax.sme_manager.ui.view.ChequeWriterView;
+import com.lax.sme_manager.ui.view.ChequeSettingsView; // Import
 import com.lax.sme_manager.ui.view.SettingsView;
 import com.lax.sme_manager.ui.view.VendorManagementView;
 
@@ -53,6 +55,7 @@ public class LaxSmeManagerApp {
     private SettingsView settingsView;
     private VendorManagementView vendorManagementView;
     private ChequeWriterView chequeWriterView;
+    private ChequeSettingsView chequeSettingsView; // Declaration
 
     public LaxSmeManagerApp(Stage stage) {
         this.stage = stage;
@@ -91,6 +94,13 @@ public class LaxSmeManagerApp {
         Scene scene = new Scene(root, 1400, 800);
         stage.setScene(scene);
         stage.setTitle("Lax Yard & SME Manager v2.0");
+
+        // Set App Icon
+        try {
+            stage.getIcons().add(new Image(getClass().getResourceAsStream("/images/app_icon.png")));
+        } catch (Exception e) {
+            System.err.println("Could not load app icon: " + e.getMessage());
+        }
 
         // Backup on close
         stage.setOnCloseRequest(e -> {
@@ -187,8 +197,14 @@ public class LaxSmeManagerApp {
             showChequeWriter();
         });
 
+        Button chequeSettingsBtn = createNavButton("Cheque Settings", false);
+        chequeSettingsBtn.setOnAction(e -> {
+            updateActiveButton(chequeSettingsBtn);
+            showChequeSettings();
+        });
+
         navItems.getChildren().addAll(dashboardBtn, entryBtn, historyBtn,
-                vendorsBtn, chequeWriterBtn, settingsBtn);
+                vendorsBtn, chequeWriterBtn, chequeSettingsBtn, settingsBtn);
         sidebar.getChildren().addAll(headerContainer, navItems);
 
         return sidebar;
@@ -352,6 +368,17 @@ public class LaxSmeManagerApp {
         contentArea.getChildren().add(vendorManagementView);
     }
 
+    private void showChequeSettings() {
+        if (chequeSettingsView == null) {
+            chequeSettingsView = new ChequeSettingsView();
+        }
+        contentArea.getChildren().clear();
+        ScrollPane scrollPane = new ScrollPane(chequeSettingsView);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: transparent;");
+        contentArea.getChildren().add(scrollPane);
+    }
+
     private void globalRefresh() {
         // 1. Reset Caches
         vendorCache.refreshCache();
@@ -362,6 +389,8 @@ public class LaxSmeManagerApp {
         purchaseHistoryView = null;
         settingsView = null;
         vendorManagementView = null;
+        chequeWriterView = null;
+        chequeSettingsView = null;
 
         // 3. Reload current screen
         if (currentActiveButton != null) {
