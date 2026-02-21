@@ -13,7 +13,7 @@ import java.sql.Statement;
  */
 public class DatabaseMigrator {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseMigrator.class);
-    private static final int CURRENT_VERSION = 5; // Version 5: Multi-Bank & Integrity
+    private static final int CURRENT_VERSION = 11; // Version 11: Date Offset Support
 
     public void migrate() {
         try (Connection conn = DatabaseManager.getConnection()) {
@@ -68,6 +68,30 @@ public class DatabaseMigrator {
                 LOGGER.info("Executing Phase 5 Migration (Multi-Bank Template)...");
                 migrateToV5(stmt);
             }
+            if (fromVersion < 6) {
+                LOGGER.info("Executing Phase 6 Migration (Printer Offsets)...");
+                migrateToV6(stmt);
+            }
+            if (fromVersion < 7) {
+                LOGGER.info("Executing Phase 7 Migration (A/C Payee Mobility)...");
+                migrateToV7(stmt);
+            }
+            if (fromVersion < 8) {
+                LOGGER.info("Executing Phase 8 Migration (MICR Standards)...");
+                migrateToV8(stmt);
+            }
+            if (fromVersion < 9) {
+                LOGGER.info("Executing Phase 9 Migration (Payee Management)...");
+                migrateToV9(stmt);
+            }
+            if (fromVersion < 10) {
+                LOGGER.info("Executing Phase 10 Migration (Print Orientation)...");
+                migrateToV10(stmt);
+            }
+            if (fromVersion < 11) {
+                LOGGER.info("Executing Phase 11 Migration (Date Offsets)...");
+                migrateToV11(stmt);
+            }
         }
     }
 
@@ -105,14 +129,78 @@ public class DatabaseMigrator {
                     signature_x DOUBLE, signature_y DOUBLE
                 )
                 """);
-        
+
         // Seed State Bank of India template
-        stmt.execute("""
-                INSERT OR IGNORE INTO bank_templates 
-                (bank_name, date_x, date_y, payee_x, payee_y, amount_words_x, amount_words_y, amount_digits_x, amount_digits_y, signature_x, signature_y)
-                VALUES 
-                ('State Bank of India', 154.0, 10.0, 25.0, 24.0, 25.0, 36.0, 155.0, 48.0, 150.0, 75.0)
-                """);
+        stmt.execute(
+                """
+                        INSERT OR IGNORE INTO bank_templates
+                        (bank_name, date_x, date_y, payee_x, payee_y, amount_words_x, amount_words_y, amount_digits_x, amount_digits_y, signature_x, signature_y)
+                        VALUES
+                        ('State Bank of India', 154.0, 10.0, 25.0, 24.0, 25.0, 36.0, 155.0, 48.0, 150.0, 75.0)
+                        """);
+    }
+
+    private void migrateToV6(Statement stmt) throws SQLException {
+        try {
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN offset_x DOUBLE DEFAULT 0.0");
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN offset_y DOUBLE DEFAULT 0.0");
+        } catch (SQLException e) {
+            LOGGER.warn("offset_x/y columns might already exist.");
+        }
+    }
+
+    private void migrateToV7(Statement stmt) throws SQLException {
+        try {
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN ac_payee_x DOUBLE DEFAULT 15.0");
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN ac_payee_y DOUBLE DEFAULT 10.0");
+
+            // Also update bank_templates for future-proofing
+            stmt.execute("ALTER TABLE bank_templates ADD COLUMN ac_payee_x DOUBLE DEFAULT 15.0");
+            stmt.execute("ALTER TABLE bank_templates ADD COLUMN ac_payee_y DOUBLE DEFAULT 10.0");
+        } catch (SQLException e) {
+            LOGGER.warn("ac_payee_x/y columns might already exist.");
+        }
+    }
+
+    private void migrateToV8(Statement stmt) throws SQLException {
+        try {
+            stmt.execute(
+                    "ALTER TABLE cheque_config ADD COLUMN micr_code VARCHAR(100) DEFAULT '⑆000000⑈ 000000000⑉ 00'");
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN micr_x DOUBLE DEFAULT 13.0");
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN micr_y DOUBLE DEFAULT 85.0");
+
+            stmt.execute(
+                    "ALTER TABLE bank_templates ADD COLUMN micr_code VARCHAR(100) DEFAULT '⑆000000⑈ 000000000⑉ 00'");
+            stmt.execute("ALTER TABLE bank_templates ADD COLUMN micr_x DOUBLE DEFAULT 13.0");
+            stmt.execute("ALTER TABLE bank_templates ADD COLUMN micr_y DOUBLE DEFAULT 85.0");
+        } catch (SQLException e) {
+            LOGGER.warn("MICR columns might already exist.");
+        }
+    }
+
+    private void migrateToV9(Statement stmt) throws SQLException {
+        try {
+            stmt.execute("ALTER TABLE vendors ADD COLUMN default_amount DECIMAL(15,2) DEFAULT 0.00");
+        } catch (SQLException e) {
+            LOGGER.warn("default_amount column might already exist.");
+        }
+    }
+
+    private void migrateToV10(Statement stmt) throws SQLException {
+        try {
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN print_orientation VARCHAR(20) DEFAULT 'LANDSCAPE'");
+        } catch (SQLException e) {
+            LOGGER.warn("print_orientation column might already exist.");
+        }
+    }
+
+    private void migrateToV11(Statement stmt) throws SQLException {
+        try {
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN date_offset_x DOUBLE DEFAULT 0.0");
+            stmt.execute("ALTER TABLE cheque_config ADD COLUMN date_offset_y DOUBLE DEFAULT 0.0");
+        } catch (SQLException e) {
+            LOGGER.warn("date_offset_x/y columns might already exist.");
+        }
     }
 
     private void createBaseSchema(Statement stmt) throws SQLException {

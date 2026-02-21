@@ -20,6 +20,7 @@ public class VendorEditDialog extends Dialog<VendorEntity> {
     private TextField contactPersonField;
     private TextField phoneField;
     private TextField emailField;
+    private TextField defaultAmountField;
     private TextArea addressArea;
     private TextArea notesArea;
 
@@ -82,6 +83,14 @@ public class VendorEditDialog extends Dialog<VendorEntity> {
         addressArea.setPrefRowCount(3);
         GridPane.setHgrow(addressArea, Priority.ALWAYS);
 
+        // Default Amount
+        Label defaultAmountLbl = new Label("DEFAULT AMOUNT (₹)");
+        defaultAmountLbl.setStyle(labelStyle);
+        defaultAmountField = new TextField();
+        defaultAmountField.setPromptText("Auto-populate in Cheque Writer");
+        defaultAmountField.setStyle(fieldStyle);
+        GridPane.setHgrow(defaultAmountField, Priority.ALWAYS);
+
         // Notes
         Label notesLbl = new Label("INTERNAL NOTES");
         notesLbl.setStyle(labelStyle);
@@ -107,6 +116,9 @@ public class VendorEditDialog extends Dialog<VendorEntity> {
         grid.add(addressLbl, 0, row);
         grid.add(addressArea, 1, row++);
 
+        grid.add(defaultAmountLbl, 0, row);
+        grid.add(defaultAmountField, 1, row++);
+
         grid.add(notesLbl, 0, row);
         grid.add(notesArea, 1, row);
 
@@ -119,6 +131,7 @@ public class VendorEditDialog extends Dialog<VendorEntity> {
             phoneField.setText(vendor.getPhone());
             emailField.setText(vendor.getEmail());
             addressArea.setText(vendor.getAddress());
+            defaultAmountField.setText(vendor.getDefaultAmount() != null ? vendor.getDefaultAmount().toPlainString() : "");
             notesArea.setText(vendor.getNotes());
         }
 
@@ -148,6 +161,12 @@ public class VendorEditDialog extends Dialog<VendorEntity> {
                 result.setPhone(phoneField.getText().trim());
                 result.setEmail(emailField.getText().trim());
                 result.setAddress(addressArea.getText().trim());
+                try {
+                    String amt = defaultAmountField.getText().trim();
+                    result.setDefaultAmount(amt.isEmpty() ? java.math.BigDecimal.ZERO : new java.math.BigDecimal(amt));
+                } catch (Exception e) {
+                    result.setDefaultAmount(java.math.BigDecimal.ZERO);
+                }
                 result.setNotes(notesArea.getText().trim());
                 result.setUpdatedAt(LocalDateTime.now());
 

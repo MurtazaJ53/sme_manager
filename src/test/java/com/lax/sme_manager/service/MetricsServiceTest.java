@@ -123,5 +123,10 @@ public class MetricsServiceTest {
         public List<PurchaseEntity> findThisMonthPurchases() {
             return Collections.emptyList();
         }
+
+        @Override
+        public int getLastInsertedId() {
+            return 0;
+        }
     }
 }

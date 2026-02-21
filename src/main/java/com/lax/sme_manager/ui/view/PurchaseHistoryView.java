@@ -507,6 +507,9 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
                     int count = 0;
                     int duplicates = 0;
 
+                    java.util.List<com.lax.sme_manager.dto.ChequeData> batchDataList = new java.util.ArrayList<>();
+                    java.util.List<PurchaseEntity> successList = new java.util.ArrayList<>();
+                    
                     try {
                         long chqNum = Long.parseLong(startChqStr.trim());
 
@@ -520,19 +523,32 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
                                 continue;
                             }
 
-                            try {
-                                String vName = getVendorName(p.getVendorId());
-                                var data = new com.lax.sme_manager.dto.ChequeData(vName, p.getGrandTotal(),
-                                        p.getChequeDate() != null ? p.getChequeDate() : LocalDate.now(), true, p.getId());
-                                printService.printSilent(config, data);
-
-                                // Mark as PAID in DB
-                                markBatchPurchaseAsPaid(p.getId(), currentChqNo);
-                                count++;
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
+                            String vName = getVendorName(p.getVendorId());
+                            var data = new com.lax.sme_manager.dto.ChequeData(vName, p.getGrandTotal(),
+                                    p.getChequeDate() != null ? p.getChequeDate() : LocalDate.now(), true, p.getId());
+                            
+                            // Set the cheque number in data if needed (though printBatch might not use it yet)
+                            batchDataList.add(data);
+                            successList.add(p);
+                            
+                            p.setChequeNumber(currentChqNo); // Temporarily store for marking PAID
                             chqNum++;
+                        }
+                        
+                        // EXECUTE HIGH-PERFORMANCE BATCH PRINT
+                        if (!batchDataList.isEmpty()) {
+                            try {
+                                printService.printBatch(config, batchDataList);
+                                
+                                // If print succeeded (no exception), mark all as PAID
+                                for (PurchaseEntity p : successList) {
+                                    markBatchPurchaseAsPaid(p.getId(), p.getChequeNumber());
+                                    count++;
+                                }
+                            } catch (Exception e) {
+                                LOGGER.error("Batch print failed", e);
+                                new Alert(Alert.AlertType.ERROR, "Printing failed: " + e.getMessage()).show();
+                            }
                         }
                     } catch (NumberFormatException e) {
                         new Alert(Alert.AlertType.ERROR, "Invalid cheque number format. Use digits only.").show();

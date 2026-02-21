@@ -18,7 +18,9 @@ public class Vendor {
     private String ifscCode;
     private String notes;
     private String status;
+    private boolean isDeleted; // Added isDeleted field
     private String panNumber;
+    private java.math.BigDecimal defaultAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

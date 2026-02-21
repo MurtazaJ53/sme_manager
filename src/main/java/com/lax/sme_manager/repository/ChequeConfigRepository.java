@@ -50,7 +50,11 @@ public class ChequeConfigRepository {
                 amount_digits_x=?, amount_digits_y=?,
                 signature_x=?, signature_y=?,
                 signature_path=?, date_positions=?,
-                active_signature_id=?
+                active_signature_id=?, offset_x=?, offset_y=?,
+                date_offset_x=?, date_offset_y=?,
+                ac_payee_x=?, ac_payee_y=?,
+                micr_code=?, micr_x=?, micr_y=?,
+                print_orientation=?
                 WHERE id = 1
                 """;
 
@@ -73,6 +77,16 @@ public class ChequeConfigRepository {
             pstmt.setString(14, config.getSignaturePath());
             pstmt.setString(15, config.getDatePositions());
             pstmt.setInt(16, config.getActiveSignatureId());
+            pstmt.setDouble(17, config.getOffsetX());
+            pstmt.setDouble(18, config.getOffsetY());
+            pstmt.setDouble(19, config.getDateOffsetX());
+            pstmt.setDouble(20, config.getDateOffsetY());
+            pstmt.setDouble(21, config.getAcPayeeX());
+            pstmt.setDouble(22, config.getAcPayeeY());
+            pstmt.setString(23, config.getMicrCode());
+            pstmt.setDouble(24, config.getMicrX());
+            pstmt.setDouble(25, config.getMicrY());
+            pstmt.setString(26, config.getPrintOrientation());
 
             int rows = pstmt.executeUpdate();
             if (rows == 0) {
@@ -95,8 +109,12 @@ public class ChequeConfigRepository {
                     amount_digits_x, amount_digits_y,
                     signature_x, signature_y,
                     signature_path, date_positions,
-                    active_signature_id
-                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    active_signature_id, offset_x, offset_y,
+                    date_offset_x, date_offset_y,
+                    ac_payee_x, ac_payee_y,
+                    micr_code, micr_x, micr_y,
+                    print_orientation
+                ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         try (Connection conn = DatabaseManager.getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -117,6 +135,16 @@ public class ChequeConfigRepository {
             pstmt.setString(14, config.getSignaturePath());
             pstmt.setString(15, config.getDatePositions());
             pstmt.setInt(16, config.getActiveSignatureId());
+            pstmt.setDouble(17, config.getOffsetX());
+            pstmt.setDouble(18, config.getOffsetY());
+            pstmt.setDouble(19, config.getDateOffsetX());
+            pstmt.setDouble(20, config.getDateOffsetY());
+            pstmt.setDouble(21, config.getAcPayeeX());
+            pstmt.setDouble(22, config.getAcPayeeY());
+            pstmt.setString(23, config.getMicrCode());
+            pstmt.setDouble(24, config.getMicrX());
+            pstmt.setDouble(25, config.getMicrY());
+            pstmt.setString(26, config.getPrintOrientation());
 
             pstmt.executeUpdate();
         } catch (SQLException e) {
@@ -143,6 +171,16 @@ public class ChequeConfigRepository {
                 .signatureY(rs.getDouble("signature_y"))
                 .signaturePath(rs.getString("signature_path"))
                 .datePositions(rs.getString("date_positions"))
+                .offsetX(rs.getDouble("offset_x"))
+                .offsetY(rs.getDouble("offset_y"))
+                .dateOffsetX(rs.getDouble("date_offset_x"))
+                .dateOffsetY(rs.getDouble("date_offset_y"))
+                .acPayeeX(rs.getDouble("ac_payee_x"))
+                .acPayeeY(rs.getDouble("ac_payee_y"))
+                .micrCode(rs.getString("micr_code"))
+                .micrX(rs.getDouble("micr_x"))
+                .micrY(rs.getDouble("micr_y"))
+                .printOrientation(rs.getString("print_orientation"))
                 .build();
     }
 }

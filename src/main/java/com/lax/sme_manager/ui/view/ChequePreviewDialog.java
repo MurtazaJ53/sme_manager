@@ -53,10 +53,12 @@ public class ChequePreviewDialog extends Dialog<Void> {
     private TextField chequeNumberField;
     private Runnable onPrintComplete;
 
-    // CTS-2010 Dimension: 202mm x 92mm
+    // Standard Indian Cheque: 203mm x 95mm — sized to fit within dialog
+    private static final double ACTUAL_WIDTH_MM = 203.0;
+    private static final double ACTUAL_HEIGHT_MM = 95.0;
     private static final double PREVIEW_WIDTH_PX = 850;
-    private static final double PREVIEW_HEIGHT_PX = PREVIEW_WIDTH_PX * (92.0 / 202.0);
-    private static final double MM_TO_PX = PREVIEW_WIDTH_PX / 202.0;
+    private static final double MM_TO_PX = PREVIEW_WIDTH_PX / ACTUAL_WIDTH_MM;
+    private static final double PREVIEW_HEIGHT_PX = ACTUAL_HEIGHT_MM * MM_TO_PX;
 
     public ChequePreviewDialog(ChequeData chequeData) {
         this(chequeData, null);
@@ -68,13 +70,22 @@ public class ChequePreviewDialog extends Dialog<Void> {
         this.configRepo = new ChequeConfigRepository();
         this.sigRepo = new com.lax.sme_manager.repository.SignatureRepository();
         this.printService = new ChequePrintService();
-        
+
         // Load config from DB (or factory defaults if missing)
         this.config = configRepo.getConfig();
-        if (this.config == null) this.config = ChequeConfig.getFactoryDefaults();
+        if (this.config == null)
+            this.config = ChequeConfig.getFactoryDefaults();
 
         if (this.config.getActiveSignatureId() > 0) {
             this.activeSig = sigRepo.getSignatureById(this.config.getActiveSignatureId());
+        }
+
+        // Fallback: if no active signature, use the first one from DB for preview
+        if (this.activeSig == null) {
+            java.util.List<com.lax.sme_manager.repository.model.SignatureConfig> allSigs = sigRepo.getAllSignatures();
+            if (!allSigs.isEmpty()) {
+                this.activeSig = allSigs.get(0);
+            }
         }
 
         setTitle("Cheque Preview");
@@ -130,10 +141,12 @@ public class ChequePreviewDialog extends Dialog<Void> {
         try {
             Image bg = null;
             var is = getClass().getResourceAsStream("/images/standard_cheque.png");
-            if (is != null) bg = new Image(is);
+            if (is != null)
+                bg = new Image(is);
             if (bg == null) {
                 File file = new File("src/main/resources/images/standard_cheque.png");
-                if (file.exists()) bg = new Image(file.toURI().toString());
+                if (file.exists())
+                    bg = new Image(file.toURI().toString());
             }
             if (bg != null) {
                 bgView = new ImageView(bg);
@@ -154,7 +167,8 @@ public class ChequePreviewDialog extends Dialog<Void> {
         toolbar.setAlignment(Pos.CENTER);
 
         Button btnPrint = new Button("🖨️ Print Cheque");
-        btnPrint.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY) + "; -fx-padding: 8 24; -fx-font-size: 14px;");
+        btnPrint.setStyle(
+                LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY) + "; -fx-padding: 8 24; -fx-font-size: 14px;");
         btnPrint.setOnAction(e -> print());
 
         toolbar.getChildren().addAll(btnPrint);
@@ -164,6 +178,8 @@ public class ChequePreviewDialog extends Dialog<Void> {
 
         if (config.getBankName() != null && !config.getBankName().isEmpty()) {
             bankSelector.getSelectionModel().select(config.getBankName());
+        } else {
+            bankSelector.getSelectionModel().select(0);
         }
     }
 
@@ -171,7 +187,8 @@ public class ChequePreviewDialog extends Dialog<Void> {
         // Clear previous elements (except BG)
         chequePane.getChildren().removeIf(n -> n != bgView);
 
-        String dStr = chequeData.date() != null ? chequeData.date().format(DateTimeFormatter.ofPattern("ddMMyyyy")) : "14022026";
+        String dStr = chequeData.date() != null ? chequeData.date().format(DateTimeFormatter.ofPattern("ddMMyyyy"))
+                : "14022026";
         String[] positions = config.getDatePositions() != null ? config.getDatePositions().split(";") : null;
 
         for (int i = 0; i < 8; i++) {
@@ -181,36 +198,42 @@ public class ChequePreviewDialog extends Dialog<Void> {
                 x = Double.parseDouble(xy[0]);
                 y = Double.parseDouble(xy[1]);
             } else {
-                x = (config.getDateX() > 0 ? config.getDateX() : 163) + (i * ChequeConfig.DATE_DIGIT_SPACING_MM);
-                y = (config.getDateY() > 0 ? config.getDateY() : 6);
+                x = (config.getDateX() > 0 ? config.getDateX() : 159.79) + (i * ChequeConfig.DATE_DIGIT_SPACING_MM)
+                        + config.getDateOffsetX();
+                y = (config.getDateY() > 0 ? config.getDateY() : 9.04) + config.getDateOffsetY();
             }
-            Label l = createLabel(String.valueOf(dStr.charAt(i)), x, y, 22);
+            Label l = createLabel(String.valueOf(dStr.charAt(i)), x, y, 18);
+            // Center in box
+            l.setMinWidth(ChequeConfig.DATE_DIGIT_SPACING_MM * MM_TO_PX);
+            l.setAlignment(Pos.CENTER);
             chequePane.getChildren().add(l);
         }
 
         chequePane.getChildren().add(createLabel(chequeData.payeeName(),
-                config.getPayeeX() > 0 ? config.getPayeeX() : 32,
-                config.getPayeeY() > 0 ? config.getPayeeY() : 22, 18));
+                config.getPayeeX() > 0 ? config.getPayeeX() : 37,
+                config.getPayeeY() > 0 ? config.getPayeeY() : 21, 14));
 
         // Amount Words (auto-sized)
         String words = IndianNumberToWords.convert(chequeData.amount());
-        double awX = config.getAmountWordsX() > 0 ? config.getAmountWordsX() : 28;
-        Label lblWords = createLabel(words, awX, config.getAmountWordsY() > 0 ? config.getAmountWordsY() : 36, 14);
+        double awX = config.getAmountWordsX() > 0 ? config.getAmountWordsX() : 37;
+        Label lblWords = createLabel(words, awX, config.getAmountWordsY() > 0 ? config.getAmountWordsY() : 30, 12);
         double availW = Math.max(50, (197 - awX) * MM_TO_PX);
         lblWords.setPrefWidth(availW);
         lblWords.setMaxWidth(availW);
         lblWords.setWrapText(true);
         // Recalculate font size for fit
         double singleLine = availW / (words.length() * 0.6);
-        double fSize = (singleLine >= 12) ? Math.min(singleLine, 16) : Math.min(Math.max((availW * 2) / (words.length() * 0.6), 8), 14);
-        lblWords.setStyle("-fx-font-family: 'Courier New'; -fx-font-weight: bold; -fx-font-size: " + Math.round(fSize) + "px; -fx-text-fill: #1e1b4b; -fx-padding: 2 4;");
+        double fSize = (singleLine >= 12) ? Math.min(singleLine, 16)
+                : Math.min(Math.max((availW * 2) / (words.length() * 0.6), 8), 14);
+        lblWords.setStyle("-fx-font-family: 'Courier New'; -fx-font-weight: bold; -fx-font-size: " + Math.round(fSize)
+                + "px; -fx-text-fill: #1e1b4b; -fx-padding: 2 4;");
         lblWords.setFont(Font.font("Courier New", FontWeight.BOLD, fSize));
         chequePane.getChildren().add(lblWords);
 
         String digits = String.format("**%.2f/-", chequeData.amount());
         chequePane.getChildren().add(createLabel(digits,
-                config.getAmountDigitsX() > 0 ? config.getAmountDigitsX() : 164,
-                config.getAmountDigitsY() > 0 ? config.getAmountDigitsY() : 37, 18));
+                config.getAmountDigitsX() > 0 ? config.getAmountDigitsX() : 163.55,
+                config.getAmountDigitsY() > 0 ? config.getAmountDigitsY() : 37.78, 14));
 
         // Signature
         if (activeSig != null && activeSig.getPath() != null) {
@@ -222,8 +245,8 @@ public class ChequePreviewDialog extends Dialog<Void> {
                     double sigW = 40 * MM_TO_PX * activeSig.getScale();
                     sigView.setFitWidth(sigW);
                     sigView.setPreserveRatio(true);
-                    sigView.setLayoutX((config.getSignatureX() > 0 ? config.getSignatureX() : 150) * MM_TO_PX);
-                    sigView.setLayoutY((config.getSignatureY() > 0 ? config.getSignatureY() : 65) * MM_TO_PX);
+                    sigView.setLayoutX((config.getSignatureX() > 0 ? config.getSignatureX() : 152.52) * MM_TO_PX);
+                    sigView.setLayoutY((config.getSignatureY() > 0 ? config.getSignatureY() : 48.13) * MM_TO_PX);
                     sigView.setOpacity(activeSig.getOpacity());
                     sigView.setBlendMode(BlendMode.MULTIPLY);
                     chequePane.getChildren().add(sigView);
@@ -234,18 +257,23 @@ public class ChequePreviewDialog extends Dialog<Void> {
         }
 
         if (chequeData.isAcPayee()) {
-            Label ac = new Label("A/C PAYEE");
-            ac.setStyle("-fx-border-color: #1e293b; -fx-border-width: 1.5 0 1.5 0; -fx-padding: 4 12; -fx-font-weight: bold; -fx-rotate: -15; -fx-text-fill: #1e293b;");
-            ac.setLayoutX(15 * MM_TO_PX);
-            ac.setLayoutY(10 * MM_TO_PX);
+            double acX = config.getAcPayeeX() > 0 ? config.getAcPayeeX() : 31;
+            double acY = config.getAcPayeeY() > 0 ? config.getAcPayeeY() : 14;
+            Label ac = new Label("A/C PAY");
+            ac.setStyle(
+                    "-fx-border-color: #1e293b; -fx-border-width: 1.5 0 1.5 0; -fx-padding: 4 12; -fx-font-weight: bold; -fx-rotate: -15; -fx-text-fill: #1e293b; -fx-font-family: 'Courier New'; -fx-font-size: 14px;");
+            ac.setLayoutX(acX * MM_TO_PX);
+            ac.setLayoutY(acY * MM_TO_PX);
             chequePane.getChildren().add(ac);
         }
     }
 
     private Label createLabel(String text, double xMm, double yMm, double fontSize) {
-        if (text == null) text = "";
+        if (text == null)
+            text = "";
         Label l = new Label(text);
-        l.setStyle("-fx-font-family: 'Courier New'; -fx-font-weight: bold; -fx-font-size: " + fontSize + "px; -fx-text-fill: #1e1b4b; -fx-padding: 2 4;");
+        l.setStyle("-fx-font-family: 'Courier New'; -fx-font-weight: bold; -fx-font-size: " + fontSize
+                + "px; -fx-text-fill: #1e1b4b; -fx-padding: 2 4;");
         l.setFont(Font.font("Courier New", FontWeight.BOLD, fontSize));
         l.setLayoutX(xMm * MM_TO_PX);
         l.setLayoutY(yMm * MM_TO_PX);
@@ -256,9 +284,10 @@ public class ChequePreviewDialog extends Dialog<Void> {
         List<String> banks = new ArrayList<>();
         String sql = "SELECT bank_name FROM bank_templates ORDER BY bank_name";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) banks.add(rs.getString("bank_name"));
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
+            while (rs.next())
+                banks.add(rs.getString("bank_name"));
         } catch (SQLException e) {
             LOGGER.error("Failed to load bank templates", e);
         }
@@ -267,12 +296,13 @@ public class ChequePreviewDialog extends Dialog<Void> {
 
     private void handleBankSelection() {
         String selectedBank = bankSelector.getValue();
-        if (selectedBank == null || selectedBank.isBlank()) return;
-        
+        if (selectedBank == null || selectedBank.isBlank())
+            return;
+
         // Fetch new config from DB for this bank
         String sql = "SELECT * FROM bank_templates WHERE bank_name = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, selectedBank);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -290,13 +320,14 @@ public class ChequePreviewDialog extends Dialog<Void> {
                 for (int i = 0; i < 8; i++) {
                     double x = config.getDateX() + (i * ChequeConfig.DATE_DIGIT_SPACING_MM);
                     sb.append(String.format("%.2f,%.2f", x, config.getDateY()));
-                    if (i < 7) sb.append(";");
+                    if (i < 7)
+                        sb.append(";");
                 }
                 config.setDatePositions(sb.toString());
-                
+
                 config.setSignatureX(rs.getDouble("signature_x"));
                 config.setSignatureY(rs.getDouble("signature_y"));
-                
+
                 // Re-render
                 renderChequeElements();
             }
@@ -329,7 +360,8 @@ public class ChequePreviewDialog extends Dialog<Void> {
             } else {
                 new Alert(Alert.AlertType.INFORMATION, "Print job sent successfully.").show();
             }
-            if (onPrintComplete != null) javafx.application.Platform.runLater(onPrintComplete);
+            if (onPrintComplete != null)
+                javafx.application.Platform.runLater(onPrintComplete);
             close();
         } catch (Exception e) {
             new Alert(Alert.AlertType.ERROR, "Printing Failed: " + e.getMessage()).show();
@@ -339,10 +371,11 @@ public class ChequePreviewDialog extends Dialog<Void> {
     private boolean isChequeNumberDuplicate(String chqNo) {
         String sql = "SELECT COUNT(*) FROM purchase_entries WHERE cheque_number = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, chqNo);
             ResultSet rs = stmt.executeQuery();
-            if (rs.next()) return rs.getInt(1) > 0;
+            if (rs.next())
+                return rs.getInt(1) > 0;
         } catch (SQLException e) {
             LOGGER.error("Failed to check duplicate cheque", e);
         }
@@ -352,15 +385,15 @@ public class ChequePreviewDialog extends Dialog<Void> {
     private void markPurchaseAsPaid(int purchaseId, String chqNo) {
         String sql = "UPDATE purchase_entries SET status = 'PAID', cheque_number = ?, cheque_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
         try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, chqNo);
             stmt.setObject(2, java.time.LocalDate.now());
             stmt.setInt(3, purchaseId);
             stmt.executeUpdate();
         } catch (SQLException e) {
             LOGGER.error("Failed to auto-reconcile purchase", e);
-            javafx.application.Platform.runLater(() ->
-                    new Alert(Alert.AlertType.WARNING, "Cheque printed but failed to update status: " + e.getMessage()).show());
+            javafx.application.Platform.runLater(() -> new Alert(Alert.AlertType.WARNING,
+                    "Cheque printed but failed to update status: " + e.getMessage()).show());
         }
     }
 }

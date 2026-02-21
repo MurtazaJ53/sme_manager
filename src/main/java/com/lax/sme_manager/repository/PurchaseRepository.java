@@ -360,6 +360,39 @@ public class PurchaseRepository implements IPurchaseRepository {
         }
     }
 
+    @Override
+    public List<PurchaseEntity> findAllDeleted() {
+        List<PurchaseEntity> purchases = new ArrayList<>();
+        String sql = "SELECT * FROM purchase_entries WHERE is_deleted = 1 ORDER BY updated_at DESC";
+
+        try (Connection conn = DatabaseManager.getConnection();
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                purchases.add(mapResultSetToEntity(rs));
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching deleted purchases: " + e.getMessage());
+        }
+        return purchases;
+    }
+
+    @Override
+    public void restore(Integer id) {
+        String sql = "UPDATE purchase_entries SET is_deleted = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+
+        try (Connection conn = DatabaseManager.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Error restoring purchase: " + e.getMessage());
+            throw new RuntimeException("Failed to restore purchase", e);
+        }
+    }
+
     private PurchaseEntity mapResultSetToEntity(ResultSet rs) throws SQLException {
         return PurchaseEntity.builder()
                 .id(rs.getInt("id"))

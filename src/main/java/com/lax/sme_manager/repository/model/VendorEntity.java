@@ -22,6 +22,7 @@ public class VendorEntity {
     private String email;
     private String address;
     private String notes;
+    private java.math.BigDecimal defaultAmount;
     private Boolean isDeleted; // Soft delete flag
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

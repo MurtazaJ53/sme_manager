@@ -19,7 +19,7 @@ public class VendorRepository {
     public List<VendorEntity> findAll() {
         String sql = """
                 SELECT id, name, contact_person, address,
-                       phone, email, notes, is_deleted,
+                       phone, email, notes, default_amount, is_deleted,
                        created_at, updated_at
                 FROM vendors
                 WHERE (is_deleted = 0 OR is_deleted IS NULL)
@@ -101,8 +101,8 @@ public class VendorRepository {
         String sql = """
                 INSERT INTO vendors
                 (name, contact_person, address, phone,
-                 email, notes, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 email, notes, default_amount, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (Connection c = DatabaseManager.getConnection();
@@ -114,8 +114,9 @@ public class VendorRepository {
             ps.setString(4, e.getPhone());
             ps.setString(5, e.getEmail());
             ps.setString(6, e.getNotes());
-            ps.setObject(7, e.getCreatedAt());
-            ps.setObject(8, e.getUpdatedAt());
+            ps.setObject(7, e.getDefaultAmount());
+            ps.setObject(8, e.getCreatedAt());
+            ps.setObject(9, e.getUpdatedAt());
 
             ps.executeUpdate();
 
@@ -135,7 +136,7 @@ public class VendorRepository {
         String sql = """
                 UPDATE vendors SET
                   name=?, contact_person=?, address=?,
-                  phone=?, email=?, notes=?,
+                  phone=?, email=?, notes=?, default_amount=?,
                   updated_at=?
                 WHERE id=?
                 """;
@@ -149,8 +150,9 @@ public class VendorRepository {
             ps.setString(4, e.getPhone());
             ps.setString(5, e.getEmail());
             ps.setString(6, e.getNotes());
-            ps.setObject(7, LocalDateTime.now());
-            ps.setInt(8, e.getId());
+            ps.setObject(7, e.getDefaultAmount());
+            ps.setObject(8, LocalDateTime.now());
+            ps.setInt(9, e.getId());
 
             ps.executeUpdate();
 
@@ -199,6 +201,7 @@ public class VendorRepository {
                 .phone(rs.getString("phone"))
                 .email(rs.getString("email"))
                 .notes(rs.getString("notes"))
+                .defaultAmount(rs.getBigDecimal("default_amount"))
                 .isDeleted(rs.getBoolean("is_deleted"))
                 .createdAt(rs.getObject("created_at", LocalDateTime.class))
                 .updatedAt(rs.getObject("updated_at", LocalDateTime.class))

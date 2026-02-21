@@ -79,4 +79,14 @@ public interface IPurchaseRepository {
     int getLastInsertedId();
 
     void delete(Integer id);
+
+    /**
+     * Get all soft-deleted purchases
+     */
+    List<PurchaseEntity> findAllDeleted();
+
+    /**
+     * Restore a soft-deleted purchase
+     */
+    void restore(Integer id);
 }

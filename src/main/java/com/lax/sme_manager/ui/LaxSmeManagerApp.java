@@ -29,6 +29,9 @@ import com.lax.sme_manager.ui.view.ChequeWriterView;
 import com.lax.sme_manager.ui.view.ChequeSettingsView; // Import
 import com.lax.sme_manager.ui.view.SettingsView;
 import com.lax.sme_manager.ui.view.VendorManagementView;
+import com.lax.sme_manager.ui.view.RecycleBinView;
+import com.lax.sme_manager.viewmodel.RecycleBinViewModel;
+import javafx.scene.control.TextInputDialog;
 
 /**
  * LaxSmeManagerApp - Main application window
@@ -56,6 +59,7 @@ public class LaxSmeManagerApp {
     private VendorManagementView vendorManagementView;
     private ChequeWriterView chequeWriterView;
     private ChequeSettingsView chequeSettingsView; // Declaration
+    private RecycleBinView recycleBinView;
 
     public LaxSmeManagerApp(Stage stage) {
         this.stage = stage;
@@ -203,8 +207,14 @@ public class LaxSmeManagerApp {
             showChequeSettings();
         });
 
+        Button recycleBinBtn = createNavButton("🗑️ Recycle Bin", false);
+        recycleBinBtn.setOnAction(e -> {
+            updateActiveButton(recycleBinBtn);
+            showRecycleBin();
+        });
+
         navItems.getChildren().addAll(dashboardBtn, entryBtn, historyBtn,
-                vendorsBtn, chequeWriterBtn, chequeSettingsBtn, settingsBtn);
+                vendorsBtn, chequeWriterBtn, chequeSettingsBtn, recycleBinBtn, settingsBtn);
         sidebar.getChildren().addAll(headerContainer, navItems);
 
         return sidebar;
@@ -371,12 +381,47 @@ public class LaxSmeManagerApp {
     private void showChequeSettings() {
         if (chequeSettingsView == null) {
             chequeSettingsView = new ChequeSettingsView();
+            chequeSettingsView.setOnSaveCallback(() -> {
+                if (chequeWriterView != null) {
+                    chequeWriterView.refreshLayout();
+                }
+            });
         }
         contentArea.getChildren().clear();
         ScrollPane scrollPane = new ScrollPane(chequeSettingsView);
         scrollPane.setFitToWidth(true);
         scrollPane.setStyle("-fx-background-color: transparent;");
         contentArea.getChildren().add(scrollPane);
+    }
+
+    private void showRecycleBin() {
+        // Password Protection as requested
+        TextInputDialog passwordDialog = new TextInputDialog();
+        passwordDialog.setTitle("Secure Access");
+        passwordDialog.setHeaderText("Recycle Bin is password protected.");
+        passwordDialog.setContentText("Enter Management Password:");
+
+        // Use a simple password for now (admin123)
+        // In a real app, this would be hashed or checked against a DB/config
+        java.util.Optional<String> result = passwordDialog.showAndWait();
+        if (result.isPresent() && result.get().equals("admin123")) {
+            if (recycleBinView == null) {
+                recycleBinView = new RecycleBinView(new RecycleBinViewModel(new PurchaseRepository()));
+            } else {
+                recycleBinView.refresh();
+            }
+            contentArea.getChildren().clear();
+            contentArea.getChildren().add(recycleBinView);
+        } else {
+            if (result.isPresent()) {
+                new Alert(Alert.AlertType.ERROR, "Incorrect password. Access denied.").show();
+            }
+            // Switch back to Dashboard or previous screen to avoid staying on empty
+            // selection
+            showDashboard();
+            updateActiveButton((Button) ((VBox) root.getLeft()).getChildren().get(1)); // Hacky way to reset visual
+                                                                                       // state
+        }
     }
 
     private void globalRefresh() {
@@ -391,6 +436,7 @@ public class LaxSmeManagerApp {
         vendorManagementView = null;
         chequeWriterView = null;
         chequeSettingsView = null;
+        recycleBinView = null;
 
         // 3. Reload current screen
         if (currentActiveButton != null) {
