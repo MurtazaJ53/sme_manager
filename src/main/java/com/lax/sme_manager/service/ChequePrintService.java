@@ -88,17 +88,12 @@ public class ChequePrintService {
                 float x, y;
                 if (posArray != null && i < posArray.length) {
                     String[] xy = posArray[i].split(",");
-                    x = (float) ((Float.parseFloat(xy[0]) + config.getOffsetX() + config.getDateOffsetX())
-                            * MM_TO_POINTS);
-                    y = CHEQUE_HEIGHT_POINTS
-                            - (float) ((Float.parseFloat(xy[1]) + config.getOffsetY() + config.getDateOffsetY())
-                                    * MM_TO_POINTS);
+                    x = (float) ((Float.parseFloat(xy[0]) + config.getOffsetX()) * MM_TO_POINTS);
+                    y = CHEQUE_HEIGHT_POINTS - (float) ((Float.parseFloat(xy[1]) + config.getOffsetY()) * MM_TO_POINTS);
                 } else {
-                    x = (float) ((config.getDateX() + (i * ChequeConfig.DATE_DIGIT_SPACING_MM) + config.getOffsetX()
-                            + config.getDateOffsetX()) * MM_TO_POINTS);
-                    y = CHEQUE_HEIGHT_POINTS
-                            - (float) ((config.getDateY() + config.getOffsetY() + config.getDateOffsetY())
-                                    * MM_TO_POINTS);
+                    x = (float) ((config.getDateX() + (i * ChequeConfig.DATE_DIGIT_SPACING_MM) + config.getOffsetX())
+                            * MM_TO_POINTS);
+                    y = CHEQUE_HEIGHT_POINTS - (float) ((config.getDateY() + config.getOffsetY()) * MM_TO_POINTS);
                 }
                 float charOffset = 1.8f * MM_TO_POINTS;
                 streamDrawText(contentStream, String.valueOf(dateStr.charAt(i)), x + charOffset, y);

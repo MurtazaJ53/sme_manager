@@ -230,7 +230,7 @@ public class ChequePreviewDialog extends Dialog<Void> {
         lblWords.setFont(Font.font("Courier New", FontWeight.BOLD, fSize));
         chequePane.getChildren().add(lblWords);
 
-        String digits = String.format("**%.2f/-", chequeData.amount());
+        String digits = String.format("%.2f/-", chequeData.amount());
         chequePane.getChildren().add(createLabel(digits,
                 config.getAmountDigitsX() > 0 ? config.getAmountDigitsX() : 163.55,
                 config.getAmountDigitsY() > 0 ? config.getAmountDigitsY() : 37.78, 14));
