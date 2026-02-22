@@ -9,6 +9,7 @@ import com.lax.sme_manager.ui.component.UIStyles;
 import com.lax.sme_manager.ui.theme.LaxTheme;
 import com.lax.sme_manager.util.ImageUtils;
 import com.lax.sme_manager.util.BackupService;
+import com.lax.sme_manager.util.PasswordManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -162,7 +163,266 @@ public class SettingsView extends VBox {
         sigLayout.getChildren().addAll(left, right);
         sigSection.getChildren().addAll(rbiNote, sigLayout);
 
-        getChildren().addAll(titleLabel, generalSection, chequeSection, sigSection);
+        // --- 4. SECURITY (Password Management) ---
+        VBox securitySection = createSection("🔒 Security Settings");
+
+        // Container for side-by-side password change forms
+        HBox passwordsContainer = new HBox(30);
+        passwordsContainer.setAlignment(Pos.TOP_LEFT);
+
+        // -- Left: Login Password --
+        VBox loginPwBox = new VBox(10);
+        Label loginPwTitle = new Label("Change Login Password");
+        loginPwTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #0f172a;");
+
+        GridPane loginPwGrid = new GridPane();
+        loginPwGrid.setHgap(12);
+        loginPwGrid.setVgap(10);
+        String labelStyle = "-fx-font-size: 12px; -fx-text-fill: #475569;";
+
+        Label lOld = new Label("Current Password:");
+        lOld.setStyle(labelStyle);
+        PasswordField loginOldPw = new PasswordField();
+        loginOldPw.setPromptText("Current");
+        loginOldPw.setStyle(LaxTheme.getInputStyle());
+        Label lNew = new Label("New Password:");
+        lNew.setStyle(labelStyle);
+        PasswordField loginNewPw = new PasswordField();
+        loginNewPw.setPromptText("New");
+        loginNewPw.setStyle(LaxTheme.getInputStyle());
+        Label lConf = new Label("Confirm Password:");
+        lConf.setStyle(labelStyle);
+        PasswordField loginConfPw = new PasswordField();
+        loginConfPw.setPromptText("Confirm");
+        loginConfPw.setStyle(LaxTheme.getInputStyle());
+
+        loginPwGrid.add(lOld, 0, 0);
+        loginPwGrid.add(loginOldPw, 1, 0);
+        loginPwGrid.add(lNew, 0, 1);
+        loginPwGrid.add(loginNewPw, 1, 1);
+        loginPwGrid.add(lConf, 0, 2);
+        loginPwGrid.add(loginConfPw, 1, 2);
+
+        Button btnChangeLogin = new Button("🔑 Change Login Password");
+        btnChangeLogin.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY));
+        btnChangeLogin.setOnAction(e -> {
+            String oldPw = loginOldPw.getText();
+            String newPw = loginNewPw.getText();
+            String confPw = loginConfPw.getText();
+            if (oldPw.isEmpty() || newPw.isEmpty() || confPw.isEmpty()) {
+                AlertUtils.showWarning("Missing Fields", "Please fill all fields.");
+                return;
+            }
+            if (!newPw.equals(confPw)) {
+                AlertUtils.showError("Mismatch", "New password and confirmation do not match.");
+                return;
+            }
+            if (newPw.length() < 4) {
+                AlertUtils.showError("Too Short", "Password must be at least 4 characters.");
+                return;
+            }
+            if (PasswordManager.changeLoginPassword(oldPw, newPw)) {
+                AlertUtils.showInfo("Password Changed", "Login password updated successfully!");
+                loginOldPw.clear();
+                loginNewPw.clear();
+                loginConfPw.clear();
+            } else {
+                AlertUtils.showError("Wrong Password", "Current password is incorrect.");
+            }
+        });
+        loginPwBox.getChildren().addAll(loginPwTitle, loginPwGrid, btnChangeLogin);
+
+        // -- Right: Recycle Bin Password --
+        VBox recyclePwBox = new VBox(10);
+        Label recyclePwTitle = new Label("Change Recycle Bin Password");
+        recyclePwTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #0f172a;");
+
+        GridPane recyclePwGrid = new GridPane();
+        recyclePwGrid.setHgap(12);
+        recyclePwGrid.setVgap(10);
+
+        Label rOld = new Label("Current Password:");
+        rOld.setStyle(labelStyle);
+        PasswordField recycleOldPw = new PasswordField();
+        recycleOldPw.setPromptText("Current");
+        recycleOldPw.setStyle(LaxTheme.getInputStyle());
+        Label rNew = new Label("New Password:");
+        rNew.setStyle(labelStyle);
+        PasswordField recycleNewPw = new PasswordField();
+        recycleNewPw.setPromptText("New");
+        recycleNewPw.setStyle(LaxTheme.getInputStyle());
+        Label rConf = new Label("Confirm Password:");
+        rConf.setStyle(labelStyle);
+        PasswordField recycleConfPw = new PasswordField();
+        recycleConfPw.setPromptText("Confirm");
+        recycleConfPw.setStyle(LaxTheme.getInputStyle());
+
+        recyclePwGrid.add(rOld, 0, 0);
+        recyclePwGrid.add(recycleOldPw, 1, 0);
+        recyclePwGrid.add(rNew, 0, 1);
+        recyclePwGrid.add(recycleNewPw, 1, 1);
+        recyclePwGrid.add(rConf, 0, 2);
+        recyclePwGrid.add(recycleConfPw, 1, 2);
+
+        Button btnChangeRecycle = new Button("🔑 Change Recycle Bin Password");
+        btnChangeRecycle.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY));
+        btnChangeRecycle.setOnAction(e -> {
+            String oldPw = recycleOldPw.getText();
+            String newPw = recycleNewPw.getText();
+            String confPw = recycleConfPw.getText();
+            if (oldPw.isEmpty() || newPw.isEmpty() || confPw.isEmpty()) {
+                AlertUtils.showWarning("Missing Fields", "Please fill all fields.");
+                return;
+            }
+            if (!newPw.equals(confPw)) {
+                AlertUtils.showError("Mismatch", "New password and confirmation do not match.");
+                return;
+            }
+            if (newPw.length() < 4) {
+                AlertUtils.showError("Too Short", "Password must be at least 4 characters.");
+                return;
+            }
+            if (PasswordManager.changeRecyclePassword(oldPw, newPw)) {
+                AlertUtils.showInfo("Password Changed", "Recycle Bin password updated successfully!");
+                recycleOldPw.clear();
+                recycleNewPw.clear();
+                recycleConfPw.clear();
+            } else {
+                AlertUtils.showError("Wrong Password", "Current password is incorrect.");
+            }
+        });
+        recyclePwBox.getChildren().addAll(recyclePwTitle, recyclePwGrid, btnChangeRecycle);
+
+        passwordsContainer.getChildren().addAll(loginPwBox, recyclePwBox);
+
+        // Separator
+        Separator sep = new Separator();
+        sep.setPadding(new Insets(15, 0, 10, 0));
+
+        // -- Security Question Setup --
+        VBox secQuestionBox = new VBox(10);
+        Label secQuestionTitle = new Label("Password Recovery (Security Question)");
+        secQuestionTitle.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #0f172a;");
+        Label secQuestionSub = new Label("Set up a security question to recover forgotten passwords.");
+        secQuestionSub.setStyle("-fx-font-size: 12px; -fx-text-fill: #64748b;");
+
+        GridPane sqGrid = new GridPane();
+        sqGrid.setHgap(12);
+        sqGrid.setVgap(10);
+
+        Label q1Label = new Label("Security Question 1:");
+        q1Label.setStyle(labelStyle);
+        TextField sq1Field = new TextField();
+        sq1Field.setPromptText("e.g. What is your mother's maiden name?");
+        sq1Field.setPrefWidth(300);
+        sq1Field.setStyle(LaxTheme.getInputStyle());
+        sq1Field.setText(PasswordManager.getSecurityQuestion1());
+
+        Label a1Label = new Label("Answer 1:");
+        a1Label.setStyle(labelStyle);
+        PasswordField ans1Field = new PasswordField();
+        ans1Field.setPromptText("Answer to question 1");
+        ans1Field.setPrefWidth(300);
+        ans1Field.setStyle(LaxTheme.getInputStyle());
+
+        Label q2Label = new Label("Security Question 2:");
+        q2Label.setStyle(labelStyle);
+        TextField sq2Field = new TextField();
+        sq2Field.setPromptText("e.g. What was your first pet's name?");
+        sq2Field.setPrefWidth(300);
+        sq2Field.setStyle(LaxTheme.getInputStyle());
+        sq2Field.setText(PasswordManager.getSecurityQuestion2());
+
+        Label a2Label = new Label("Answer 2:");
+        a2Label.setStyle(labelStyle);
+        PasswordField ans2Field = new PasswordField();
+        ans2Field.setPromptText("Answer to question 2");
+        ans2Field.setPrefWidth(300);
+        ans2Field.setStyle(LaxTheme.getInputStyle());
+
+        sqGrid.add(q1Label, 0, 0);
+        sqGrid.add(sq1Field, 1, 0);
+        sqGrid.add(a1Label, 0, 1);
+        sqGrid.add(ans1Field, 1, 1);
+
+        sqGrid.add(q2Label, 0, 2);
+        sqGrid.add(sq2Field, 1, 2);
+        sqGrid.add(a2Label, 0, 3);
+        sqGrid.add(ans2Field, 1, 3);
+
+        boolean alreadySet = PasswordManager.hasSecurityQuestions();
+        sqGrid.setDisable(alreadySet);
+
+        // Verification field if questions already exist
+        VBox actionBox = new VBox(10);
+        Button btnSaveSq = new Button("🛡️ Save Recovery Setup");
+        btnSaveSq.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.SECONDARY));
+        btnSaveSq.setDisable(alreadySet);
+
+        if (alreadySet) {
+            Button btnUnlock = new Button("🔓 Change Recovery Questions");
+            btnUnlock.setStyle(
+                    "-fx-background-color: #f8fafc; -fx-text-fill: #475569; -fx-border-color: #e2e8f0; -fx-border-radius: 6;");
+
+            btnUnlock.setOnAction(e -> {
+                Dialog<String> authDialog = new Dialog<>();
+                authDialog.setTitle("Authorize Change");
+                authDialog.setHeaderText("Enter Admin Password to modify recovery settings.");
+                AlertUtils.styleDialog(authDialog);
+
+                ButtonType okBtn = new ButtonType("Authorize", ButtonBar.ButtonData.OK_DONE);
+                authDialog.getDialogPane().getButtonTypes().addAll(okBtn, ButtonType.CANCEL);
+
+                PasswordField pf = new PasswordField();
+                pf.setPromptText("Current Login Password");
+                pf.setStyle(LaxTheme.getInputStyle());
+                authDialog.getDialogPane().setContent(new VBox(10, new Label("Admin Password:"), pf));
+
+                authDialog.setResultConverter(b -> b == okBtn ? pf.getText() : null);
+
+                java.util.Optional<String> result = authDialog.showAndWait();
+                if (result.isPresent() && PasswordManager.validateLogin(result.get())) {
+                    sqGrid.setDisable(false);
+                    btnSaveSq.setDisable(false);
+                    btnUnlock.setDisable(true);
+                    btnUnlock.setText("🔓 Unlocked for Editing");
+                } else if (result.isPresent()) {
+                    AlertUtils.showError("Unauthorized", "Incorrect password.");
+                }
+            });
+            actionBox.getChildren().add(btnUnlock);
+        }
+
+        btnSaveSq.setOnAction(e -> {
+            String q1 = sq1Field.getText().trim();
+            String a1 = ans1Field.getText().trim();
+            String q2 = sq2Field.getText().trim();
+            String a2 = ans2Field.getText().trim();
+
+            if (q1.isEmpty() || a1.isEmpty() || q2.isEmpty() || a2.isEmpty()) {
+                AlertUtils.showWarning("Missing Fields", "Please enter both questions and answers.");
+                return;
+            }
+
+            PasswordManager.setSecurityQuestions(q1, a1, q2, a2);
+            AlertUtils.showInfo("Protected",
+                    "Security questions updated successfully!\nThey are now locked again for safety.");
+
+            // Clean up and Lock Again
+            ans1Field.clear();
+            ans2Field.clear();
+            sqGrid.setDisable(true);
+            btnSaveSq.setDisable(true);
+
+            // Re-show the settings to refresh the "Unlock" button logic
+            // In a real app we'd trigger a reload, but for now just locking UI is enough.
+        });
+
+        secQuestionBox.getChildren().addAll(secQuestionTitle, secQuestionSub, sqGrid, actionBox, btnSaveSq);
+
+        securitySection.getChildren().addAll(passwordsContainer, sep, secQuestionBox);
+
+        getChildren().addAll(titleLabel, generalSection, chequeSection, sigSection, securitySection);
     }
 
     private void loadSignatures() {

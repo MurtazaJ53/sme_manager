@@ -64,4 +64,10 @@ public class ConfigManager {
     // Convenience Keys
     public static final String KEY_LANGUAGE = "app.language";
     public static final String KEY_BACKUP_PATH = "app.backup.path";
+    public static final String KEY_LOGIN_PASSWORD = "app.security.login_password";
+    public static final String KEY_RECYCLE_PASSWORD = "app.security.recycle_password";
+    public static final String KEY_SECURITY_QUESTION = "app.security.question";
+    public static final String KEY_SECURITY_ANSWER = "app.security.answer";
+    public static final String KEY_SECURITY_QUESTION_2 = "app.security.question2";
+    public static final String KEY_SECURITY_ANSWER_2 = "app.security.answer2";
 }

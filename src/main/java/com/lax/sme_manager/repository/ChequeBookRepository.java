@@ -177,52 +177,77 @@ public class ChequeBookRepository {
      *         it
      */
     public synchronized long consumeLeaves(int bookId, int count) {
+        String logCheckSql = "SELECT leaf_number FROM cheque_usage_log WHERE book_id = ? AND leaf_number = ? AND status IN ('CANCELLED', 'VOID', 'MISPRINT')";
         String selectSql = "SELECT next_number, end_number FROM cheque_books WHERE id = ?";
-        String updateSql = "UPDATE cheque_books SET next_number = next_number + ? WHERE id = ?";
+        String updateNextSql = "UPDATE cheque_books SET next_number = ? WHERE id = ?";
+        String insertLogSql = "INSERT INTO cheque_usage_log (book_id, leaf_number, status) VALUES (?, ?, 'PRINTED')";
 
         try (Connection conn = DatabaseManager.getConnection()) {
             conn.setAutoCommit(false);
             try {
-                long currentNumber = -1;
-                long endNumber = -1;
+                long startNum = -1;
+                long endNum = -1;
 
-                try (PreparedStatement selectStmt = conn.prepareStatement(selectSql)) {
-                    selectStmt.setInt(1, bookId);
-                    try (ResultSet rs = selectStmt.executeQuery()) {
+                // 1. Get current state
+                try (PreparedStatement pstmt = conn.prepareStatement(selectSql)) {
+                    pstmt.setInt(1, bookId);
+                    try (ResultSet rs = pstmt.executeQuery()) {
                         if (rs.next()) {
-                            currentNumber = rs.getLong("next_number");
-                            endNumber = rs.getLong("end_number");
+                            startNum = rs.getLong("next_number");
+                            endNum = rs.getLong("end_number");
                         }
                     }
                 }
 
-                if (currentNumber == -1) {
+                if (startNum == -1 || startNum > endNum) {
                     conn.rollback();
-                    return -1; // Book not found
+                    return -1;
                 }
 
-                if (currentNumber > endNumber) {
-                    conn.rollback();
-                    return -1; // Exhausted
+                // 2. Resolve 'count' valid leaves, skipping holes
+                java.util.List<Long> toConsume = new java.util.ArrayList<>();
+                long candidate = startNum;
+
+                while (toConsume.size() < count && candidate <= endNum) {
+                    boolean isBlocked = false;
+                    try (PreparedStatement checkStmt = conn.prepareStatement(logCheckSql)) {
+                        checkStmt.setInt(1, bookId);
+                        checkStmt.setLong(2, candidate);
+                        try (ResultSet rs = checkStmt.executeQuery()) {
+                            if (rs.next())
+                                isBlocked = true;
+                        }
+                    }
+
+                    if (!isBlocked) {
+                        toConsume.add(candidate);
+                    }
+                    candidate++;
                 }
 
-                // Calculate the final number assigned
-                long finalNumberAssigned = currentNumber + count - 1;
+                if (toConsume.size() < count) {
+                    conn.rollback();
+                    return -1; // Not enough leaves left in this book
+                }
 
-                // We still deduct/increment even if it crosses endNumber, it just means the
-                // book gets exhausted halfway.
-                // The application layer should prevent batching that overflows, but we protect
-                // DB level via constraints/logic if needed.
-                // For now, allow it to overflow, which marks it exhausted.
+                // 3. Mark them as PRINTED and update next_number to candidate
+                try (PreparedStatement logStmt = conn.prepareStatement(insertLogSql)) {
+                    for (long num : toConsume) {
+                        logStmt.setInt(1, bookId);
+                        logStmt.setLong(2, num);
+                        logStmt.addBatch();
+                    }
+                    logStmt.executeBatch();
+                }
 
-                try (PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
-                    updateStmt.setInt(1, count);
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateNextSql)) {
+                    updateStmt.setLong(1, candidate);
                     updateStmt.setInt(2, bookId);
                     updateStmt.executeUpdate();
                 }
 
                 conn.commit();
-                return currentNumber;
+                return toConsume.get(0); // Return first in batch
 
             } catch (SQLException e) {
                 conn.rollback();
@@ -231,9 +256,54 @@ public class ChequeBookRepository {
                 conn.setAutoCommit(true);
             }
         } catch (SQLException e) {
-            LOGGER.error("Failed to consume cheque leaves", e);
+            LOGGER.error("Failed to consume cheque leaves with skip logic", e);
             return -1;
         }
+    }
+
+    public boolean markLeafStatus(int bookId, long leafNumber, String status, String remarks) {
+        String sql = "INSERT INTO cheque_usage_log (book_id, leaf_number, status, remarks) VALUES (?, ?, ?, ?) " +
+                "ON CONFLICT(book_id, leaf_number) DO UPDATE SET status=excluded.status, remarks=excluded.remarks";
+        try (Connection conn = DatabaseManager.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, bookId);
+            pstmt.setLong(2, leafNumber);
+            pstmt.setString(3, status);
+            pstmt.setString(4, remarks);
+            return pstmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            LOGGER.error("Failed to mark leaf status", e);
+            return false;
+        }
+    }
+
+    public List<Long> getLeavesWithStatus(int bookId, List<String> statuses) {
+        List<Long> leaves = new ArrayList<>();
+        if (statuses == null || statuses.isEmpty())
+            return leaves;
+
+        StringBuilder sb = new StringBuilder(
+                "SELECT leaf_number FROM cheque_usage_log WHERE book_id = ? AND status IN (");
+        for (int i = 0; i < statuses.size(); i++) {
+            sb.append("?").append(i == statuses.size() - 1 ? "" : ",");
+        }
+        sb.append(") ORDER BY leaf_number ASC");
+
+        try (Connection conn = DatabaseManager.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sb.toString())) {
+            pstmt.setInt(1, bookId);
+            for (int i = 0; i < statuses.size(); i++) {
+                pstmt.setString(i + 2, statuses.get(i));
+            }
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    leaves.add(rs.getLong(1));
+                }
+            }
+        } catch (SQLException e) {
+            LOGGER.error("Failed to fetch leaves with statuses", e);
+        }
+        return leaves;
     }
 
     private ChequeBook mapResultSet(ResultSet rs) throws SQLException {

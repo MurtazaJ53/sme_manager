@@ -1,5 +1,7 @@
 package com.lax.sme_manager.ui.component;
 
+import com.lax.sme_manager.ui.LaxSmeManagerApp;
+
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.StageStyle;
@@ -69,6 +71,23 @@ public class AlertUtils {
 
         // Set minimum width for polish
         dialogPane.setMinWidth(400);
+
+        // Attempt to set app icon on the stage
+        javafx.stage.Window window = dialogPane.getScene().getWindow();
+        if (window instanceof javafx.stage.Stage) {
+            LaxSmeManagerApp.setAppIcon((javafx.stage.Stage) window);
+        } else {
+            // If window is not ready, attach a listener or just let it be.
+            // Usually for Dialogs it's ready after show() or during init.
+            dialog.showingProperty().addListener((obs, old, showing) -> {
+                if (showing) {
+                    javafx.stage.Window w = dialogPane.getScene().getWindow();
+                    if (w instanceof javafx.stage.Stage) {
+                        LaxSmeManagerApp.setAppIcon((javafx.stage.Stage) w);
+                    }
+                }
+            });
+        }
     }
 
     /**

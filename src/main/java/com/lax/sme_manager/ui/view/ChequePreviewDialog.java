@@ -55,6 +55,7 @@ public class ChequePreviewDialog extends Dialog<Void> {
     private ComboBox<com.lax.sme_manager.repository.model.ChequeBook> bookSelector;
     private TextField chequeNumberField;
     private Label warningLabel;
+    private Button btnPrint;
     private Runnable onPrintComplete;
 
     // Standard Indian Cheque: 203mm x 95mm — sized to fit within dialog
@@ -203,10 +204,15 @@ public class ChequePreviewDialog extends Dialog<Void> {
         HBox toolbar = new HBox(15);
         toolbar.setAlignment(Pos.CENTER);
 
-        Button btnPrint = new Button("🖨️ Print Cheque");
+        btnPrint = new Button("🖨️ Print Cheque");
         btnPrint.setStyle(
                 LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY) + "; -fx-padding: 8 24; -fx-font-size: 14px;");
         btnPrint.setOnAction(e -> print());
+
+        // Update initial state of print button based on book selection
+        if (bookSelector.getValue() != null) {
+            btnPrint.setDisable(bookSelector.getValue().isExhausted());
+        }
 
         toolbar.getChildren().addAll(btnPrint);
 
@@ -447,11 +453,18 @@ public class ChequePreviewDialog extends Dialog<Void> {
     private void updateWarningLabel(com.lax.sme_manager.repository.model.ChequeBook book) {
         if (book.isExhausted()) {
             warningLabel.setText("⚠️ This cheque book is EXHAUSTED. Please select a different book.");
+            warningLabel.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;"); // Red
+            if (btnPrint != null)
+                btnPrint.setDisable(true);
         } else if (book.getRemainingLeaves() <= 5) {
             warningLabel.setText("⚠️ Only " + book.getRemainingLeaves() + " leaves remaining in this book!");
             warningLabel.setStyle("-fx-text-fill: #eab308; -fx-font-weight: bold;"); // Yellow
+            if (btnPrint != null)
+                btnPrint.setDisable(false);
         } else {
             warningLabel.setText("");
+            if (btnPrint != null)
+                btnPrint.setDisable(false);
         }
     }
 

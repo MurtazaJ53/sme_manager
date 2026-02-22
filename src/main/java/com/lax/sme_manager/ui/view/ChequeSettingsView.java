@@ -218,10 +218,10 @@ public class ChequeSettingsView extends VBox {
         // "Pay" line at ~37mm X, 21mm Y
         Label payLabel = new Label("Pay");
         payLabel.setStyle(
-        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: black; -fx-font-family: 'Courier New';");
+                "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: black; -fx-font-family: 'Courier New';");
         payLabel.setLayoutX(28 * MM_TO_PX);
         payLabel.setLayoutY(22 * MM_TO_PX);
-        
+
         Rectangle payBox = new Rectangle(120 * MM_TO_PX, 8 * MM_TO_PX);
         payBox.setFill(Color.TRANSPARENT);
         payBox.setStroke(Color.LIGHTGRAY);
@@ -232,10 +232,10 @@ public class ChequeSettingsView extends VBox {
         // "Amount" words line at ~37mm X, 30mm Y
         Label amountLabel = new Label("Rupees");
         amountLabel.setStyle(
-        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: black; -fx-font-family: 'Courier New';");  
+                "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: black; -fx-font-family: 'Courier New';");
         amountLabel.setLayoutX(24 * MM_TO_PX);
         amountLabel.setLayoutY(30 * MM_TO_PX);
-        
+
         Rectangle amountBox = new Rectangle(110 * MM_TO_PX, 8 * MM_TO_PX);
         amountBox.setFill(Color.TRANSPARENT);
         amountBox.setStroke(Color.LIGHTGRAY);
@@ -744,6 +744,11 @@ public class ChequeSettingsView extends VBox {
                 refreshBooksTable();
             });
 
+            Button btnManage = new Button("📄 Manage Leaves");
+            btnManage.setStyle(
+                    "-fx-background-color: white; -fx-border-color: #cbd5e1; -fx-border-radius: 4; -fx-cursor: hand;");
+            btnManage.setOnAction(e -> showManageLeavesDialog(book));
+
             Button deleteBtn = new Button("🗑️");
             deleteBtn.setStyle("-fx-background-color: transparent; -fx-cursor: hand;");
             deleteBtn.setOnAction(e -> {
@@ -753,7 +758,7 @@ public class ChequeSettingsView extends VBox {
                 }
             });
 
-            row.getChildren().addAll(info, spacer, setActiveBtn, deleteBtn);
+            row.getChildren().addAll(info, spacer, setActiveBtn, btnManage, deleteBtn);
             chequeBookListContainer.getChildren().add(row);
         }
     }
@@ -833,5 +838,117 @@ public class ChequeSettingsView extends VBox {
             bookRepo.saveBook(b);
             refreshBooksTable();
         });
+    }
+
+    private void showManageLeavesDialog(com.lax.sme_manager.repository.model.ChequeBook book) {
+        Dialog<Void> dialog = new Dialog<>();
+        dialog.setTitle("Manage Leaves: " + book.getBookName());
+        dialog.setHeaderText("Mark leaves as Cancelled or Void to skip them during printing.");
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CLOSE);
+        AlertUtils.styleDialog(dialog);
+
+        VBox root = new VBox(20);
+        root.setPadding(new Insets(20));
+        root.setPrefWidth(450);
+
+        // --- Quick Cancel Form ---
+        VBox cancelForm = new VBox(10);
+        cancelForm.setStyle(
+                "-fx-background-color: #f8fafc; -fx-padding: 15; -fx-border-color: #e2e8f0; -fx-border-radius: 8;");
+        Label formTitle = new Label("Mark Leaf Status");
+        formTitle.setStyle("-fx-font-weight: bold;");
+
+        HBox inputs = new HBox(10);
+        inputs.setAlignment(Pos.CENTER_LEFT);
+
+        TextField leafNumField = new TextField();
+        leafNumField.setPromptText("Leaf Number");
+        leafNumField.setPrefWidth(120);
+
+        ComboBox<String> statusCombo = new ComboBox<>();
+        statusCombo.getItems().addAll("CANCELLED", "VOID", "MISPRINT");
+        statusCombo.setValue("CANCELLED");
+
+        Button btnMark = new Button("Mark");
+        btnMark.setStyle(LaxTheme.getButtonStyle(LaxTheme.ButtonType.PRIMARY));
+
+        inputs.getChildren().addAll(leafNumField, statusCombo, btnMark);
+
+        TextField remarksField = new TextField();
+        remarksField.setPromptText("Remarks (optional)");
+        cancelForm.getChildren().addAll(formTitle, inputs, remarksField);
+
+        // --- Current Log List ---
+        VBox logContainer = new VBox(8);
+        ScrollPane logScroll = new ScrollPane(logContainer);
+        logScroll.setFitToWidth(true);
+        logScroll.setPrefHeight(250);
+
+        // Recursive runnable for self-refreshing list
+        final Runnable[] refreshRef = new Runnable[1];
+        refreshRef[0] = () -> {
+            logContainer.getChildren().clear();
+            List<Long> cancelled = bookRepo.getLeavesWithStatus(book.getId(), List.of("CANCELLED", "VOID", "MISPRINT"));
+
+            if (cancelled.isEmpty()) {
+                logContainer.getChildren().add(new Label("No skipped leaves recorded yet."));
+            } else {
+                Label skipTitle = new Label("Skipped / Manually Marked Leaves:");
+                skipTitle.setStyle("-fx-font-weight: bold; -fx-padding: 0 0 5 0;");
+                logContainer.getChildren().add(skipTitle);
+
+                for (Long num : cancelled) {
+                    HBox item = new HBox(10);
+                    item.setAlignment(Pos.CENTER_LEFT);
+                    Label lbl = new Label(String.format("#%06d - %s", num, "CANCELLED"));
+                    lbl.setStyle("-fx-text-fill: #ef4444; -fx-font-family: 'Courier New';");
+                    Region s = new Region();
+                    HBox.setHgrow(s, Priority.ALWAYS);
+
+                    Button btnRestore = new Button("Restore");
+                    btnRestore.setStyle("-fx-font-size: 10px;");
+                    btnRestore.setOnAction(e -> {
+                        String sql = "DELETE FROM cheque_usage_log WHERE book_id = ? AND leaf_number = ?";
+                        try (java.sql.Connection conn = com.lax.sme_manager.util.DatabaseManager.getConnection();
+                                java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                            pstmt.setInt(1, book.getId());
+                            pstmt.setLong(2, num);
+                            pstmt.executeUpdate();
+                            refreshRef[0].run();
+                            refreshBooksTable();
+                        } catch (Exception ex) {
+                            ex.printStackTrace();
+                        }
+                    });
+                    item.getChildren().addAll(lbl, s, btnRestore);
+                    logContainer.getChildren().add(item);
+                }
+            }
+        };
+
+        btnMark.setOnAction(ev -> {
+            try {
+                String input = leafNumField.getText().trim();
+                if (input.isEmpty())
+                    return;
+                long num = Long.parseLong(input);
+                if (num < book.getStartNumber() || num > book.getEndNumber()) {
+                    AlertUtils.showError("Invalid Number", "Leaf number out of book range.");
+                    return;
+                }
+                bookRepo.markLeafStatus(book.getId(), num, statusCombo.getValue(), remarksField.getText());
+                leafNumField.clear();
+                remarksField.clear();
+                refreshRef[0].run();
+                refreshBooksTable();
+            } catch (Exception ex) {
+                AlertUtils.showError("Error", "Please enter a valid numeric leaf number.");
+            }
+        });
+
+        refreshRef[0].run();
+        root.getChildren().addAll(cancelForm, new Label("Usage History:"), logScroll);
+        dialog.getDialogPane().setContent(root);
+        dialog.showAndWait();
     }
 }

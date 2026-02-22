@@ -13,7 +13,7 @@ import java.sql.Statement;
  */
 public class DatabaseMigrator {
     private static final Logger LOGGER = LoggerFactory.getLogger(DatabaseMigrator.class);
-    private static final int CURRENT_VERSION = 12; // Version 12: Cheque Book Management Support
+    private static final int CURRENT_VERSION = 13; // Version 13: Cancelled Cheque Tracking
 
     public void migrate() {
         try (Connection conn = DatabaseManager.getConnection()) {
@@ -95,6 +95,10 @@ public class DatabaseMigrator {
             if (fromVersion < 12) {
                 LOGGER.info("Executing Phase 12 Migration (Cheque Books)...");
                 migrateToV12(stmt);
+            }
+            if (fromVersion < 13) {
+                LOGGER.info("Executing Phase 13 Migration (Cancelled Cheques)...");
+                migrateToV13(stmt);
             }
         }
     }
@@ -218,6 +222,21 @@ public class DatabaseMigrator {
                         next_number INTEGER NOT NULL,
                         is_active BOOLEAN DEFAULT 0,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """);
+    }
+
+    private void migrateToV13(Statement stmt) throws SQLException {
+        stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS cheque_usage_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        book_id INTEGER NOT NULL,
+                        leaf_number INTEGER NOT NULL,
+                        status TEXT NOT NULL, -- 'PRINTED', 'CANCELLED', 'VOID', 'MISPRINT'
+                        remarks TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (book_id) REFERENCES cheque_books(id),
+                        UNIQUE(book_id, leaf_number)
                     )
                 """);
     }

@@ -505,6 +505,14 @@ public class PurchaseHistoryView extends VBox implements RefreshableView {
         if (selected.isEmpty())
             return;
 
+        com.lax.sme_manager.repository.ChequeBookRepository bookRepo = new com.lax.sme_manager.repository.ChequeBookRepository();
+        com.lax.sme_manager.repository.model.ChequeBook activeBook = bookRepo.getActiveBook();
+        if (activeBook == null || activeBook.isExhausted()) {
+            AlertUtils.showError("Cheque Book Exhausted",
+                    "No active cheque book available with remaining leaves.\nPlease change the cheque book or select another book in Settings before printing.");
+            return;
+        }
+
         // Filter out already-PAID cheques
         List<PurchaseEntity> unpaid = selected.stream()
                 .filter(p -> !"PAID".equalsIgnoreCase(p.getStatus()))

@@ -29,10 +29,13 @@ import com.lax.sme_manager.ui.view.ChequeWriterView;
 import com.lax.sme_manager.ui.view.ChequeSettingsView; // Import
 import com.lax.sme_manager.ui.view.SettingsView;
 import com.lax.sme_manager.ui.view.VendorManagementView;
+import com.lax.sme_manager.ui.view.LoginView;
 import com.lax.sme_manager.ui.view.RecycleBinView;
 import com.lax.sme_manager.viewmodel.RecycleBinViewModel;
 import javafx.scene.control.TextInputDialog;
 import com.lax.sme_manager.ui.component.AlertUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * LaxSmeManagerApp - Main application window
@@ -57,6 +60,8 @@ public class LaxSmeManagerApp {
     private PurchaseEntryView purchaseEntryView;
     private PurchaseHistoryView purchaseHistoryView;
     private SettingsView settingsView;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(LaxSmeManagerApp.class);
     private VendorManagementView vendorManagementView;
     private ChequeWriterView chequeWriterView;
     private ChequeSettingsView chequeSettingsView; // Declaration
@@ -78,18 +83,13 @@ public class LaxSmeManagerApp {
     }
 
     private void initialize() {
+        // Build the main app layout
         root = new BorderPane();
         root.setStyle(getBackgroundStyle());
-
-        // LEFT: Sidebar Navigation
         root.setLeft(createSidebar());
-
-        // CENTER: Content area (dynamic - changes based on sidebar selection)
         contentArea = new StackPane();
         contentArea.setStyle(getContentAreaStyle());
         root.setCenter(contentArea);
-
-        // BOTTOM: Status Bar
         root.setBottom(createStatusBar());
 
         // Show Purchase Entry by default
@@ -101,18 +101,38 @@ public class LaxSmeManagerApp {
         stage.setTitle("Lax Yard & SME Manager v2.0");
 
         // Set App Icon
-        try {
-            stage.getIcons().add(new Image(getClass().getResourceAsStream("/images/app_icon.png")));
-        } catch (Exception e) {
-            System.err.println("Could not load app icon: " + e.getMessage());
-        }
+        setAppIcon(stage);
 
         // Backup on close
         stage.setOnCloseRequest(e -> {
             new BackupService().performBackup();
             System.exit(0);
         });
+
+        // Show login dialog FIRST (blocks until success)
+        showLoginDialog();
+
         stage.show();
+    }
+
+    private void showLoginDialog() {
+        Stage loginStage = new Stage();
+        loginStage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        loginStage.initOwner(stage);
+        loginStage.initStyle(javafx.stage.StageStyle.UNDECORATED);
+        loginStage.setTitle("Login");
+        loginStage.setResizable(false);
+        setAppIcon(loginStage);
+
+        LoginView loginView = new LoginView(() -> loginStage.close());
+
+        Scene loginScene = new Scene(loginView, 420, 480);
+        loginScene.setFill(Color.TRANSPARENT);
+        loginStage.setScene(loginScene);
+
+        // Center on screen
+        loginStage.centerOnScreen();
+        loginStage.showAndWait(); // Blocks until closed
     }
 
     // ============ SIDEBAR NAVIGATION ============
@@ -398,17 +418,82 @@ public class LaxSmeManagerApp {
     }
 
     private void showRecycleBin() {
-        // Password Protection as requested
-        TextInputDialog passwordDialog = new TextInputDialog();
+        Dialog<String> passwordDialog = new Dialog<>();
         AlertUtils.styleDialog(passwordDialog);
         passwordDialog.setTitle("Secure Access");
         passwordDialog.setHeaderText("Recycle Bin is password protected.");
-        passwordDialog.setContentText("Enter Management Password:");
 
-        // Use a simple password for now (admin123)
-        // In a real app, this would be hashed or checked against a DB/config
+        ButtonType accessType = new ButtonType("Access", ButtonBar.ButtonData.OK_DONE);
+        passwordDialog.getDialogPane().getButtonTypes().addAll(accessType, ButtonType.CANCEL);
+
+        VBox content = new VBox(10);
+        PasswordField pf = new PasswordField();
+        pf.setPromptText("Enter Management Password...");
+        pf.setStyle(com.lax.sme_manager.ui.theme.LaxTheme.getInputStyle());
+
+        Hyperlink forgotLink = new Hyperlink("Forgot Password?");
+        forgotLink.setStyle("-fx-text-fill: #0d9488; -fx-font-size: 12px; -fx-underline: false;");
+        forgotLink.setOnAction(e -> {
+            if (!com.lax.sme_manager.util.PasswordManager.hasSecurityQuestions()) {
+                AlertUtils.showInfo("Recovery Not Set",
+                        "You need to set up BOTH security questions in Settings to use this feature.\n\n" +
+                                "To manual reset, delete 'config.properties' from the AppData folder and restart.");
+                return;
+            }
+
+            // Phase 1
+            TextInputDialog q1Dialog = new TextInputDialog();
+            AlertUtils.styleDialog(q1Dialog);
+            q1Dialog.setTitle("Recovery: Phase 1");
+            q1Dialog.setHeaderText("Question 1: " + com.lax.sme_manager.util.PasswordManager.getSecurityQuestion1());
+            q1Dialog.setContentText("Secret Answer 1:");
+            java.util.Optional<String> ans1 = q1Dialog.showAndWait();
+
+            if (ans1.isPresent()) {
+                // Phase 2
+                TextInputDialog q2Dialog = new TextInputDialog();
+                AlertUtils.styleDialog(q2Dialog);
+                q2Dialog.setTitle("Recovery: Phase 2");
+                q2Dialog.setHeaderText(
+                        "Question 2: " + com.lax.sme_manager.util.PasswordManager.getSecurityQuestion2());
+                q2Dialog.setContentText("Secret Answer 2:");
+                java.util.Optional<String> ans2 = q2Dialog.showAndWait();
+
+                if (ans2.isPresent()) {
+                    if (com.lax.sme_manager.util.PasswordManager.validateSecurityAnswers(ans1.get(), ans2.get())) {
+                        TextInputDialog newPwDialog = new TextInputDialog();
+                        AlertUtils.styleDialog(newPwDialog);
+                        newPwDialog.setTitle("Reset Password");
+                        newPwDialog.setHeaderText("Identity Verified! Setup your new password.");
+                        newPwDialog.setContentText("New Password:");
+                        java.util.Optional<String> newPw = newPwDialog.showAndWait();
+                        if (newPw.isPresent() && !newPw.get().isEmpty()) {
+                            com.lax.sme_manager.util.PasswordManager.resetRecyclePasswordWithAnswers(ans1.get(),
+                                    ans2.get(), newPw.get());
+                            AlertUtils.showInfo("Password Reset", "Management password reset successfully!");
+                        }
+                    } else {
+                        AlertUtils.showError("Access Denied", "Incorrect security answers. Verification failed.");
+                    }
+                }
+            }
+        });
+
+        content.getChildren().addAll(new Label("Enter Management Password:"), pf, forgotLink);
+        passwordDialog.getDialogPane().setContent(content);
+
+        // Auto-focus password field
+        javafx.application.Platform.runLater(pf::requestFocus);
+
+        passwordDialog.setResultConverter(button -> {
+            if (button == accessType) {
+                return pf.getText();
+            }
+            return null;
+        });
+
         java.util.Optional<String> result = passwordDialog.showAndWait();
-        if (result.isPresent() && result.get().equals("admin123")) {
+        if (result.isPresent() && com.lax.sme_manager.util.PasswordManager.validateRecycleAccess(result.get())) {
             if (recycleBinView == null) {
                 recycleBinView = new RecycleBinView(new RecycleBinViewModel(new PurchaseRepository()));
             } else {
@@ -542,4 +627,13 @@ public class LaxSmeManagerApp {
                 LaxTheme.Sidebar.BUTTON_MIN_HEIGHT);
     }
 
+    public static void setAppIcon(Stage targetStage) {
+        try {
+            if (targetStage == null)
+                return;
+            targetStage.getIcons().add(new Image(LaxSmeManagerApp.class.getResourceAsStream("/images/app_icon.png")));
+        } catch (Exception e) {
+            // Silently fail icon load
+        }
+    }
 }
