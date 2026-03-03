@@ -167,21 +167,31 @@ public class LaxSmeManagerApp {
         Label header = new Label("LAX MANAGER");
         header.setStyle("-fx-font-size: " + LaxTheme.Typography.FONT_SIZE_LG
                 + "; -fx-font-weight: bold; -fx-text-fill: white;");
+        header.setMinWidth(Region.USE_PREF_SIZE);
 
         Region headerSpacer = new Region();
         HBox.setHgrow(headerSpacer, Priority.ALWAYS);
 
+        // Common style for icon buttons
+        String btnBase = "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 14px; -fx-cursor: hand;";
+        String btnHover = "-fx-background-color: rgba(255,255,255,0.1); -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-background-radius: 4;";
+
+        Button lockBtn = new Button("🔒");
+        lockBtn.setTooltip(new Tooltip("Quick Lock Session"));
+        lockBtn.setStyle(btnBase);
+        lockBtn.setOnMouseEntered(e -> lockBtn.setStyle(btnHover));
+        lockBtn.setOnMouseExited(e -> lockBtn.setStyle(btnBase));
+        lockBtn.setOnAction(e -> handleQuickLock());
+
         Button refreshBtn = new Button("🔄");
         refreshBtn.setTooltip(new Tooltip("Global Refresh"));
-        refreshBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 16px; -fx-cursor: hand;");
-        refreshBtn.setOnMouseEntered(e -> refreshBtn.setStyle(
-                "-fx-background-color: rgba(255,255,255,0.1); -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand; -fx-background-radius: 4;"));
-        refreshBtn.setOnMouseExited(e -> refreshBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 16px; -fx-cursor: hand;"));
+        refreshBtn.setStyle(btnBase);
+        refreshBtn.setOnMouseEntered(e -> refreshBtn.setStyle(btnHover));
+        refreshBtn.setOnMouseExited(e -> refreshBtn.setStyle(btnBase));
         refreshBtn.setOnAction(e -> globalRefresh());
 
-        headerContainer.getChildren().addAll(header, headerSpacer, refreshBtn);
+        headerContainer.getChildren().clear();
+        headerContainer.getChildren().addAll(header, headerSpacer, lockBtn, refreshBtn);
         VBox.setVgrow(headerContainer, Priority.NEVER);
 
         Button btnDashboard = createNavButton("\uD83D\uDCCA  Dashboard", false);
@@ -321,13 +331,6 @@ public class LaxSmeManagerApp {
         btnLogout.setOnAction(e -> handleLogout());
 
         footer.getChildren().addAll(userBadge, btnLogout);
-
-        // Quick Lock Button
-        Button btnLock = createNavButton("🔒 Quick Lock", false);
-        btnLock.setStyle(btnLock.getStyle() + "-fx-text-fill: #94a3b8;");
-        btnLock.setOnAction(e -> handleQuickLock());
-
-        footer.getChildren().add(0, btnLock); // Add at top of footer
 
         // Add a spacer to push footer to bottom
         Region spacer = new Region();

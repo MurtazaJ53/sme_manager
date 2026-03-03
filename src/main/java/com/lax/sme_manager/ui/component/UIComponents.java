@@ -4,6 +4,8 @@ import com.lax.sme_manager.domain.Vendor;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.text.Text;
+import javafx.scene.text.TextFlow;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -88,14 +90,19 @@ public class UIComponents {
      * rate/weight=decimal)
      */
     public static VBox createLabeledTextField(String labelText, boolean integerOnly, TextField textField) {
+        return createLabeledTextField(labelText, integerOnly, textField, false);
+    }
+
+    /**
+     * Labeled numeric text field with validation and optional required indicator.
+     */
+    public static VBox createLabeledTextField(String labelText, boolean integerOnly, TextField textField, boolean required) {
         VBox fieldGroup = new VBox(LaxTheme.Spacing.SPACE_6);
         fieldGroup.setPrefHeight(STANDARD_FIELD_GROUP_HEIGHT);
         fieldGroup.setMinHeight(STANDARD_FIELD_GROUP_HEIGHT);
         fieldGroup.setPadding(new Insets(0, 0, 0, 0)); // No extra padding - handled by parent
 
-        Label label = new Label(labelText);
-        label.setStyle(getLabelStyle());
-        label.setPrefHeight(20);
+        Node labelNode = required ? createRequiredLabel(labelText) : createPlainLabel(labelText);
 
         textField.setPrefHeight(STANDARD_INPUT_HEIGHT);
         textField.setPrefWidth(STANDARD_INPUT_WIDTH);
@@ -104,7 +111,7 @@ public class UIComponents {
         textField.setStyle(getInputStyle() + " -fx-background-color: #f8fafc;");
         applyNumericValidation(textField, !integerOnly); // true=decimal, false=integer
 
-        fieldGroup.getChildren().addAll(label, textField);
+        fieldGroup.getChildren().addAll(labelNode, textField);
         return fieldGroup;
     }
 
@@ -112,12 +119,17 @@ public class UIComponents {
      * Labeled DatePicker with Indian format (DD-MM-YYYY)
      */
     public static VBox createLabeledDatePicker(String labelText, DatePicker datePicker) {
+        return createLabeledDatePicker(labelText, datePicker, false);
+    }
+
+    /**
+     * Labeled DatePicker with Indian format and optional required indicator.
+     */
+    public static VBox createLabeledDatePicker(String labelText, DatePicker datePicker, boolean required) {
         VBox fieldGroup = new VBox(LaxTheme.Spacing.SPACE_6);
         fieldGroup.setPrefHeight(STANDARD_FIELD_GROUP_HEIGHT);
 
-        Label label = new Label(labelText);
-        label.setStyle(getLabelStyle());
-        label.setPrefHeight(20);
+        Node labelNode = required ? createRequiredLabel(labelText) : createPlainLabel(labelText);
 
         datePicker.setPrefHeight(STANDARD_INPUT_HEIGHT);
         datePicker.setPrefWidth(STANDARD_INPUT_WIDTH);
@@ -141,7 +153,7 @@ public class UIComponents {
         });
         datePicker.getEditor().setStyle("-fx-background-color: transparent; -fx-padding: 0 8 0 8; -fx-font-size: 14;");
 
-        fieldGroup.getChildren().addAll(label, datePicker);
+        fieldGroup.getChildren().addAll(labelNode, datePicker);
         return fieldGroup;
     }
 
@@ -149,20 +161,23 @@ public class UIComponents {
      * Labeled ComboBox with bilingual label
      */
     public static VBox createLabeledComboBox(String labelText, ComboBox<?> comboBox) {
+        return createLabeledComboBox(labelText, comboBox, false);
+    }
+
+    /**
+     * Labeled ComboBox with optional required indicator.
+     */
+    public static VBox createLabeledComboBox(String labelText, ComboBox<?> comboBox, boolean required) {
         VBox fieldGroup = new VBox(LaxTheme.Spacing.SPACE_6);
         fieldGroup.setPrefHeight(STANDARD_FIELD_GROUP_HEIGHT);
 
-        Label label = new Label(labelText);
-        label.setStyle(getLabelStyle());
-        label.setPrefHeight(20);
+        Node labelNode = required ? createRequiredLabel(labelText) : createPlainLabel(labelText);
 
-        // for (String item : items) comboBox.getItems().add(item);
-        // if (defaultValue != null) comboBox.setValue(defaultValue);
         comboBox.setPrefHeight(STANDARD_INPUT_HEIGHT);
         comboBox.setPrefWidth(STANDARD_INPUT_WIDTH);
         comboBox.setStyle(getInputStyle() + " -fx-background-color: #f8fafc;");
 
-        fieldGroup.getChildren().addAll(label, comboBox);
+        fieldGroup.getChildren().addAll(labelNode, comboBox);
         return fieldGroup;
     }
 
@@ -333,6 +348,29 @@ public class UIComponents {
     private static String getLabelStyle() {
         return String.format("-fx-font-size: 14; -fx-font-weight: bold; -fx-text-fill: %s; -fx-letter-spacing: -0.2px;",
                 LaxTheme.Colors.TEXT_SECONDARY);
+    }
+
+    /**
+     * Creates a plain label node (no asterisk).
+     */
+    private static Label createPlainLabel(String labelText) {
+        Label label = new Label(labelText);
+        label.setStyle(getLabelStyle());
+        label.setPrefHeight(20);
+        return label;
+    }
+
+    /**
+     * Creates a label with a red asterisk (*) for required fields.
+     */
+    private static TextFlow createRequiredLabel(String labelText) {
+        Text labelPart = new Text(labelText + " ");
+        labelPart.setStyle(getLabelStyle());
+        Text asterisk = new Text("*");
+        asterisk.setStyle("-fx-font-size: 14; -fx-font-weight: bold; -fx-fill: #EF4444;");
+        TextFlow flow = new TextFlow(labelPart, asterisk);
+        flow.setPrefHeight(20);
+        return flow;
     }
 
     private static String getInputStyle() {

@@ -224,25 +224,25 @@ public class PurchaseEntryViewModel {
         }
 
         if (selectedVendor.get() == null) {
-            statusMessage.set("Vendor is required.");
+            statusMessage.set("⚠ Please select or enter a vendor name.");
             isStatusError.set(true);
             return false;
         }
 
         if (parseIntSafe(bags.get(), 0) <= 0) {
-            statusMessage.set("Bags must be > 0");
+            statusMessage.set("⚠ Please enter number of bags.");
             isStatusError.set(true);
             return false;
         }
 
         if (parseBigDecimalSafe(rate.get(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) <= 0) {
-            statusMessage.set("Rate must be > 0");
+            statusMessage.set("⚠ Please enter the rate.");
             isStatusError.set(true);
             return false;
         }
 
         if (!isLumpsum.get() && parseBigDecimalSafe(weight.get(), BigDecimal.ZERO).compareTo(BigDecimal.ZERO) <= 0) {
-            statusMessage.set("Weight is required for non-lumpsum.");
+            statusMessage.set("⚠ Please enter the weight (required when not lumpsum).");
             isStatusError.set(true);
             return false;
         }
