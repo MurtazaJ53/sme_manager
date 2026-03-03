@@ -136,7 +136,7 @@ public class LoginView extends StackPane {
         forgotLink.setOnAction(e -> handleForgotPassword());
 
         // --- Footer ---
-        Label footer = new Label("\u00A9 2026 Lax Yard \u2022 v2.0");
+        Label footer = new Label("\u00A9 2026 Lax Yard \u2022 v2.2");
         footer.setFont(Font.font("Segoe UI", FontWeight.NORMAL, 11));
         footer.setTextFill(Color.web("#94a3b8"));
 

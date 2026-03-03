@@ -40,7 +40,7 @@ jobs:
       run: |
         jpackage --name "Lax Yard and SME Manager" `
                  --vendor "RASolutions" `
-                 --app-version "1.0" `
+                 --app-version "2.2" `
                  --input build\libs `
                  --dest build\dist `
                  --main-jar sme-mngr.jar `
@@ -54,9 +54,11 @@ jobs:
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        files: build/dist/*.msi
-        tag_name: v1.0.${{ github.run_number }}
-        name: Release v1.0.${{ github.run_number }}
+        files: |
+          build/dist/*.msi
+          build/libs/sme-mngr.jar
+        tag_name: v2.2.${{ github.run_number }}
+        name: Release v2.2.${{ github.run_number }}
         body: |
           Update for Lax Yard & SME Manager.
           Build: ${{ github.run_number }}
@@ -79,9 +81,9 @@ jobs:
 
           A new version of the Yard Manager software (Build #${{ github.run_number }}) is now ready!
 
-          You can download the installer here:
+          You can download the installer here if you are performing a fresh installation:
           https://github.com/murtuzalaxmidhar/sme_manager/releases/latest
 
           Notes: ${{ github.event.head_commit.message }}
 
-          Please install it at your convenience.
+          If you already have the app, it will update itself automatically on your next launch!

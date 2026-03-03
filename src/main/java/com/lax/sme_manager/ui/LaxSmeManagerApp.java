@@ -110,7 +110,7 @@ public class LaxSmeManagerApp {
         // Scene setup
         Scene scene = new Scene(root, 1400, 800);
         stage.setScene(scene);
-        stage.setTitle("Lax Yard & SME Manager v2.0");
+        stage.setTitle("Lax Yard & SME Manager v2.2");
 
         // Set App Icon
         setAppIcon(stage);

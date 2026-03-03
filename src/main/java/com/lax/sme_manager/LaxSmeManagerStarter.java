@@ -26,7 +26,7 @@ public class LaxSmeManagerStarter extends Application {
     @Override
     public void start(Stage primaryStage) throws Exception {
         // ✅ Initialize logging first
-        AppLogger.logApplicationStartup("Lax SME Manager", "2.0");
+        AppLogger.logApplicationStartup("Lax SME Manager", "2.2");
 
         LOGGER.info("=== LAX SME MANAGER STARTED ===");
         LOGGER.info("Java Version: {}", System.getProperty("java.version"));

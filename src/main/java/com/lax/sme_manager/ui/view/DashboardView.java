@@ -145,7 +145,7 @@ public class DashboardView extends ScrollPane implements RefreshableView {
         card.setStyle(
                 "-fx-background-color: white; -fx-background-radius: 12; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 20, 0, 0, 8); -fx-border-color: #E2E8F0; -fx-border-radius: 12;");
 
-        Label vLabel = new Label("SME Manager v2.0");
+        Label vLabel = new Label("SME Manager v2.2");
         vLabel.setStyle("-fx-font-weight: 800; -fx-font-size: 16px; -fx-text-fill: #0F172A;");
         Label statusLabel = new Label("Your system is up to date");
         statusLabel.setWrapText(true);
