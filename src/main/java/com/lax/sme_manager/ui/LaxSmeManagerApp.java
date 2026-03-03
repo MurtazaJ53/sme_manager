@@ -697,11 +697,17 @@ public class LaxSmeManagerApp {
     }
 
     private void showPrintQueueHub() {
-        // We'll implement this dialog next
         com.lax.sme_manager.ui.view.PrintQueueHubDialog dialog = new com.lax.sme_manager.ui.view.PrintQueueHubDialog(
                 stage, currentUser != null ? currentUser.getId() : null);
         dialog.setOnQueueChanged(this::refreshQueueBadge);
         dialog.showAndWait();
+
+        // Auto-refresh: After dialog closes, reload the current view so payment
+        // statuses (e.g., PAID after batch print) are immediately visible.
+        refreshQueueBadge();
+        if (currentActiveButton != null) {
+            currentActiveButton.fire();
+        }
     }
 
     private void showPrintLedger() {
