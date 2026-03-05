@@ -14,6 +14,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -119,14 +120,14 @@ public class PurchaseEntryView extends VBox implements RefreshableView {
         bagsField.setTextFormatter(NumericTextFormatter.integerOnly());
         bagsField.textProperty().bindBidirectional(viewModel.bags);
         UIComponents.addAutoClearOnFocus(bagsField); // Auto-clear
-        VBox bagsBox = UIComponents.createLabeledTextField(AppLabel.LBL_BAGS.get(), true, bagsField);
+        VBox bagsBox = UIComponents.createLabeledTextField(AppLabel.LBL_BAGS.get(), true, bagsField, true);
 
         TextField rateField = new TextField();
         rateField.setTextFormatter(NumericTextFormatter.decimalOnly(2));
         rateField.textProperty().bindBidirectional(viewModel.rate);
         UIComponents.addAutoClearOnFocus(rateField); // Auto-clear
         VBox rateBox = UIComponents.createLabeledTextField(AppLabel.LBL_RATE.get(), false,
-                rateField);
+                rateField, true);
 
         HBox row2 = UIComponents.createTwoColumnRow(bagsBox, rateBox);
 
@@ -137,7 +138,7 @@ public class PurchaseEntryView extends VBox implements RefreshableView {
         weightField.disableProperty().bind(viewModel.isLumpsum);
         UIComponents.addAutoClearOnFocus(weightField); // Auto-clear
         VBox weightBox = UIComponents.createLabeledTextField(AppLabel.LBL_WEIGHT.get(), false,
-                weightField);
+                weightField, true);
 
         CheckBox lumpsumCheck = new CheckBox();
         lumpsumCheck.selectedProperty().bindBidirectional(viewModel.isLumpsum);
@@ -171,12 +172,27 @@ public class PurchaseEntryView extends VBox implements RefreshableView {
         HBox textBtnRow = createButtons();
 
         form.getChildren().addAll(row1, row2, row3, row4, feePanel, notesBox, new Separator(), textBtnRow);
+
+        // Enter key submits the form
+        form.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                viewModel.submitEntry();
+                event.consume();
+            }
+        });
+
         return form;
     }
 
     private VBox createVendorSearchBox(ComboBox<Vendor> comboBox) {
         comboBox.setEditable(true);
         comboBox.setPromptText("Type vendor name...");
+
+        // Auto convert input to uppercase
+        comboBox.getEditor().setTextFormatter(new TextFormatter<>(change -> {
+            change.setText(change.getText().toUpperCase());
+            return change;
+        }));
 
         // Initial items
         comboBox.setItems(vendorCache.getAllVendors());
@@ -253,7 +269,7 @@ public class PurchaseEntryView extends VBox implements RefreshableView {
             }
         });
 
-        return UIComponents.createLabeledComboBox(AppLabel.LBL_VENDOR.get(), comboBox); // Reuse generic combo creator
+        return UIComponents.createLabeledComboBox(AppLabel.LBL_VENDOR.get(), comboBox, true); // Reuse generic combo creator, required=true
     }
 
     private VBox createFeePanel() {
