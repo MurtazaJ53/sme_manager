@@ -106,20 +106,22 @@ public class UpdateService {
         CompletableFuture.runAsync(() -> {
             try {
                 URL url = new URL(downloadUrl);
+                java.net.URLConnection connection = url.openConnection();
+                long fileSize = connection.getContentLengthLong();
+                
                 Path tempFile = Paths.get(System.getProperty("java.io.tmpdir"), "sme_manager_update.jar");
 
-                try (InputStream in = new BufferedInputStream(url.openStream());
+                try (InputStream in = new BufferedInputStream(connection.getInputStream());
                         FileOutputStream fileOutputStream = new FileOutputStream(tempFile.toFile())) {
 
-                    byte[] dataBuffer = new byte[1024];
+                    byte[] dataBuffer = new byte[8192];
                     int bytesRead;
                     long totalBytesRead = 0;
-                    long fileSize = 5 * 1024 * 1024; // Mock size or get from content-length if possible
 
-                    while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
+                    while ((bytesRead = in.read(dataBuffer, 0, 8192)) != -1) {
                         fileOutputStream.write(dataBuffer, 0, bytesRead);
                         totalBytesRead += bytesRead;
-                        if (progressCallback != null) {
+                        if (progressCallback != null && fileSize > 0) {
                             double progress = (double) totalBytesRead / fileSize;
                             Platform.runLater(() -> progressCallback.accept(Math.min(0.99, progress)));
                         }
@@ -133,33 +135,61 @@ public class UpdateService {
 
             } catch (Exception e) {
                 LOGGER.error("Download failed: {}", e.getMessage());
+                Platform.runLater(() -> {
+                    if (progressCallback != null) progressCallback.accept(-1.0); // Signal error
+                });
             }
         });
     }
 
     private void createAndExecuteUpdaterScript(Path updateJar) throws IOException {
-        String currentJarPath = ProcessHandle.current().info().command().orElse("");
-        if (currentJarPath.isEmpty() || !currentJarPath.endsWith(".jar")) {
-            // Fallback for development (running via gradle)
-            LOGGER.warn("Not running from a JAR. Update swap skipped in dev mode.");
+        String jarLocation = "";
+        try {
+            jarLocation = UpdateService.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath();
+            // Handle Windows path issues with URI
+            if (jarLocation.startsWith("/") && System.getProperty("os.name").toLowerCase().contains("win")) {
+                jarLocation = jarLocation.substring(1);
+            }
+            jarLocation = new File(jarLocation).getAbsolutePath();
+        } catch (Exception e) {
+            LOGGER.error("Failed to detect JAR location", e);
+        }
+
+        if (jarLocation.isEmpty() || !jarLocation.toLowerCase().endsWith(".jar")) {
+            LOGGER.warn("Not running from a JAR (detected: {}). Update swap skipped in dev mode.", jarLocation);
             return;
         }
 
-        Path currentPath = Paths.get(currentJarPath);
-        Path scriptPath = Paths.get("updater.bat");
+        Path currentPath = Paths.get(jarLocation);
+        Path scriptPath = Paths.get("updater.bat").toAbsolutePath();
 
         StringBuilder scriptContent = new StringBuilder();
         scriptContent.append("@echo off\n");
-        scriptContent.append("timeout /t 2 /nobreak > nul\n"); // Wait for app to close
-        scriptContent.append("move /y \"").append(updateJar.toString()).append("\" \"").append(currentPath.toString())
-                .append("\"\n");
+        scriptContent.append("echo Waiting for application to exit...\n");
+        scriptContent.append("timeout /t 3 /nobreak > nul\n");
+        
+        scriptContent.append(":retry\n");
+        scriptContent.append("echo Attempting to replace JAR...\n");
+        scriptContent.append("move /y \"").append(updateJar.toString()).append("\" \"").append(currentPath.toString()).append("\"\n");
+        scriptContent.append("if errorlevel 1 (\n");
+        scriptContent.append("    echo File is still locked, retrying in 2 seconds...\n");
+        scriptContent.append("    timeout /t 2 /nobreak > nul\n");
+        scriptContent.append("    goto retry\n");
+        scriptContent.append(")\n");
+
+        scriptContent.append("echo Update successful. Restarting application...\n");
         scriptContent.append("start \"\" \"javaw\" -jar \"").append(currentPath.toString()).append("\"\n");
-        scriptContent.append("del \"%~f0\"\n"); // Delete itself
+        scriptContent.append("del \"%~f0\"\n");
 
         Files.writeString(scriptPath, scriptContent.toString());
 
-        // Execute and exit
-        Runtime.getRuntime().exec("cmd /c start " + scriptPath.toString());
-        System.exit(0);
+        LOGGER.info("Executing updater script: {}", scriptPath);
+        
+        // Execute and exit using ProcessBuilder for better decoupling
+        new ProcessBuilder("cmd", "/c", "start", "/min", scriptPath.toString()).start();
+        
+        Platform.runLater(() -> {
+            System.exit(0);
+        });
     }
 }

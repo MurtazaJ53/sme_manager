@@ -60,7 +60,7 @@ public class UpdateDialog {
         notesTitle.setStyle(
                 "-fx-font-size: 11px; -fx-font-weight: 800; -fx-text-fill: #94A3B8; -fx-letter-spacing: 0.1em;");
 
-        TextArea releaseNotes = new TextArea(info.releaseNotes);
+        TextArea releaseNotes = new TextArea(info.releaseNotes.replace("\\n", "\n"));
         releaseNotes.setEditable(false);
         releaseNotes.setWrapText(true);
         releaseNotes.setPrefHeight(120);
@@ -114,9 +114,17 @@ public class UpdateDialog {
         downloadBox.setVisible(true);
 
         updateService.downloadUpdate(updateInfo.downloadUrl, progress -> {
+            if (progress < 0) {
+                statusLabel.setText("Update failed. Please check your internet.");
+                statusLabel.setStyle("-fx-text-fill: #EF4444; -fx-font-weight: 700;");
+                btnAction.setDisable(false);
+                btnAction.setText("Retry Update");
+                return;
+            }
+            
             progressBar.setProgress(progress);
             if (progress >= 1.0) {
-                statusLabel.setText("Optimizing installation...");
+                statusLabel.setText("Finalizing installation... App will restart.");
                 statusLabel.setStyle("-fx-text-fill: #0D9488; -fx-font-weight: 700;");
             } else {
                 int percent = (int) (progress * 100);

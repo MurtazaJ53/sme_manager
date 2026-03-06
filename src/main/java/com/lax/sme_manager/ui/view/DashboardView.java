@@ -165,9 +165,22 @@ public class DashboardView extends ScrollPane implements RefreshableView {
                     if (updateInfo.isUpdateAvailable) {
                         statusLabel.setText("New Version Available: v" + updateInfo.latestVersion);
                         statusLabel.setStyle("-fx-text-fill: #0D9488; -fx-font-weight: 700;");
+                        
+                        // Add Update Now button if not already present
+                        if (card.getChildren().size() < 4) {
+                            Button btnUpdateNow = new Button("Update Now");
+                            btnUpdateNow.setMaxWidth(Double.MAX_VALUE);
+                            btnUpdateNow.setStyle("-fx-background-color: #0F172A; -fx-text-fill: white; -fx-font-weight: 700; -fx-background-radius: 8; -fx-padding: 10; -fx-cursor: hand;");
+                            btnUpdateNow.setOnAction(ev -> new UpdateDialog(updateInfo).show());
+                            card.getChildren().add(btnUpdateNow);
+                        }
                     } else {
                         statusLabel.setText("You are using the latest version.");
                         statusLabel.setStyle("-fx-text-fill: #64748B; -fx-font-weight: 400;");
+                        // Remove Update Now button if it exists
+                        if (card.getChildren().size() >= 4) {
+                            card.getChildren().remove(3);
+                        }
                     }
                 });
             });

@@ -35,6 +35,9 @@ import com.lax.sme_manager.ui.view.PrintLedgerView;
 import com.lax.sme_manager.ui.view.ReportsView;
 import javafx.scene.control.TextInputDialog;
 import com.lax.sme_manager.ui.component.AlertUtils;
+import com.lax.sme_manager.service.UpdateService;
+import com.lax.sme_manager.ui.view.UpdateDialog;
+
 
 /**
  * LaxSmeManagerApp - Main application window
@@ -107,6 +110,9 @@ public class LaxSmeManagerApp {
         // Show Purchase Entry by default
         showPurchaseEntry();
 
+        // Check for updates automatically
+        triggerUpdateCheck();
+
         // Scene setup
         Scene scene = new Scene(root, 1400, 800);
         stage.setScene(scene);
@@ -145,6 +151,16 @@ public class LaxSmeManagerApp {
         // Center on screen
         loginStage.centerOnScreen();
         loginStage.showAndWait(); // Blocks until closed
+    }
+
+    private void triggerUpdateCheck() {
+        new UpdateService().checkForUpdates().thenAccept(info -> {
+            if (info != null && info.isUpdateAvailable) {
+                javafx.application.Platform.runLater(() -> {
+                    new UpdateDialog(info).show();
+                });
+            }
+        });
     }
 
     // ============ SIDEBAR NAVIGATION ============
